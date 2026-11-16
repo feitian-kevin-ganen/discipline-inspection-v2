@@ -29,23 +29,32 @@
 | MinIO | RELEASE.2025-07-23 | `http://127.0.0.1:9000`，bucket `exam-files` |
 | ffmpeg | `/home/cloud/projects/AIExamK3/code/tools/ffmpeg` | 视频封面抽帧，须随包携带 |
 
-### 1.3 应用配置
+### 1.3 应用配置规约
 
 配置文件来源：`code/exam-server/src/main/resources/application.yml`
 
-| 项目 | 配置值 |
-|------|--------|
-| 后端端口 | `8088` |
-| 数据库驱动 | `org.postgresql.Driver` |
-| 数据库 URL | `jdbc:postgresql://127.0.0.1:5434/exam_db?stringtype=unspecified` |
-| 数据库账号 | `postgres / postgres` |
-| Redis | `127.0.0.1:6379` |
-| MinIO endpoint | `http://127.0.0.1:9000` |
-| MinIO public-endpoint | `http://10.110.40.160:9000` |
-| MinIO 账号 | `minioadmin / minioadmin` |
-| ffmpeg 路径 | `/home/cloud/AIExamK3/middleware/ffmpeg`（发布后路径） |
+打包本机发布包时，必须保证 `deploy-files/config/application.yml` 与下表完全一致：
 
-> 若本机 IP 发生变化，打包前必须同步更新 `application.yml` 中的 `public-endpoint`。
+| 配置项 | 规约值 | 说明 |
+|--------|--------|------|
+| 后端端口 | `8088` | 不可随意变更，与 Nginx `/api/` 代理对应 |
+| 数据库驱动 | `org.postgresql.Driver` | 本机使用 PostgreSQL |
+| 数据库 URL | `jdbc:postgresql://127.0.0.1:5434/exam_db?stringtype=unspecified` | 本地 PaaS PostgreSQL |
+| 数据库账号 | `postgres / postgres` | 与本地 PostgreSQL 实例一致 |
+| Redis host | `127.0.0.1` | 本地 PaaS Redis |
+| Redis port | `6379` | 本地 PaaS Redis |
+| Redis password | （空） | 本地 Redis 无密码 |
+| MinIO endpoint | `http://127.0.0.1:9000` | 本地 PaaS MinIO |
+| MinIO public-endpoint | `http://10.110.40.160:9000` | **必须与本机实际 IP 一致** |
+| MinIO access-key | `minioadmin` | 本地 MinIO 默认账号 |
+| MinIO secret-key | `minioadmin` | 本地 MinIO 默认密码 |
+| MinIO bucket | `exam-files` | 本地 MinIO bucket 名 |
+| ffmpeg 路径 | `/home/cloud/AIExamK3/middleware/ffmpeg` | 发布后路径 |
+| JWT secret | `9f4c2a7b8d1e3f5061728394a5b6c7d8e9f0a1b2c3d4e5f60718293a4b5c6d7e8` | 与目标机共用同一签名密钥 |
+| JWT access-expire | `43200` 秒 | 与目标机一致 |
+| JWT refresh-expire | `604800` 秒 | 与目标机一致 |
+
+> **强制检查项**：打包前必须执行 `hostname -I` 核对本机 IP。若 IP 不是 `10.110.40.160`，必须同步修改 `application.yml` 中的 `minio.public-endpoint`，否则外部访问 MinIO 预签名 URL 会失败。
 
 ---
 

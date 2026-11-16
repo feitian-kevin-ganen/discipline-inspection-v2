@@ -50,7 +50,7 @@ exam:
   minio:
     endpoint: http://127.0.0.1:9000
     # 预签名 URL 对外地址（外网可达）；不配置则回退 endpoint
-    public-endpoint: http://10.110.10.160:9000
+    public-endpoint: http://10.110.40.160:9000
     access-key: minioadmin
     secret-key: minioadmin
     bucket: exam-files
