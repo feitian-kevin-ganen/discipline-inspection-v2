@@ -24,6 +24,9 @@ guolian/deploy-history/full-deploy/deploy-files/
 guolian/deploy-history/full-deploy/source-code/
 guolian/deploy-history/incremental-deploy/
 
+# Large binaries (kept locally but not tracked)
+code/tools/ffmpeg
+
 # OS / IDE
 .DS_Store
 .idea/
