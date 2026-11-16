@@ -1,0 +1,67 @@
+html, body, #app {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', Arial, sans-serif;
+  background-color: #f5f7fa;
+}
+
+.page-container {
+  padding: 16px;
+}
+
+.page-card {
+  background: #fff;
+  border-radius: 4px;
+  padding: 16px;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.toolbar .spacer {
+  flex: 1;
+}
+
+.pager {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.stat-cards {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.stat-card {
+  flex: 1;
+  min-width: 150px;
+  background: #fff;
+  border-radius: 4px;
+  padding: 16px;
+  text-align: center;
+}
+
+.stat-card .num {
+  font-size: 26px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.stat-card .label {
+  margin-top: 6px;
+  font-size: 13px;
+  color: #909399;
+}
+
+.stem-html img {
+  max-width: 100%;
+}

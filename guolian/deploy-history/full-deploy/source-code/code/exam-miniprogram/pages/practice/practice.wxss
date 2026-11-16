@@ -1,0 +1,81 @@
+.section-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #323233;
+  margin-bottom: 16rpx;
+}
+
+.option-row {
+  display: flex;
+  gap: 24rpx;
+}
+
+.option-tag {
+  padding: 12rpx 36rpx;
+  border-radius: 999rpx;
+  font-size: 28rpx;
+  color: #646566;
+  background: #f2f3f5;
+  border: 2rpx solid transparent;
+}
+
+.option-tag-active {
+  color: #1B5BD7;
+  background: #eef3fd;
+  border-color: #1B5BD7;
+  font-weight: 600;
+}
+
+.bank-item {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  padding: 20rpx 0;
+  border-top: 2rpx solid #f2f3f5;
+}
+
+.bank-name {
+  flex: 1;
+  font-size: 28rpx;
+  color: #323233;
+}
+
+.bank-item-active .bank-name {
+  color: #1B5BD7;
+  font-weight: 600;
+}
+
+.bank-check {
+  color: #1B5BD7;
+  font-weight: 600;
+}
+
+.start-btn {
+  margin: 32rpx 24rpx 8rpx;
+}
+
+.menu-group {
+  padding: 0 24rpx;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  padding: 28rpx 0;
+  border-top: 2rpx solid #f2f3f5;
+}
+
+.menu-item:first-child {
+  border-top: none;
+}
+
+.menu-title {
+  flex: 1;
+  font-size: 28rpx;
+  color: #323233;
+}
+
+.menu-arrow {
+  color: #c8c9cc;
+  font-size: 32rpx;
+}

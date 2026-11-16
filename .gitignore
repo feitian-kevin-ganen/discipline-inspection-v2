@@ -21,11 +21,10 @@ nohup.out
 # Deploy history artifacts (generated packages and runtime data)
 guolian/deploy-history/**/*.tar.gz
 guolian/deploy-history/full-deploy/deploy-files/
-guolian/deploy-history/full-deploy/source-code/
 guolian/deploy-history/incremental-deploy/
 
 # Large binaries (kept locally but not tracked)
-code/tools/ffmpeg
+**/code/tools/ffmpeg
 
 # OS / IDE
 .DS_Store

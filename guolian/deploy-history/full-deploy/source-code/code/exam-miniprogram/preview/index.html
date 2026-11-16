@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>纪检监察在线考试 · 原生小程序版</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: #f0f2f5;
+      color: #323233;
+      min-height: 100vh;
+      display: flex;
+      gap: 32px;
+      padding: 32px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .panel {
+      flex: 1 1 420px;
+      max-width: 640px;
+      background: #fff;
+      border-radius: 12px;
+      padding: 32px;
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+    }
+    h1 { font-size: 22px; color: #1B5BD7; margin-bottom: 8px; }
+    .sub { color: #969799; font-size: 13px; margin-bottom: 24px; }
+    h2 {
+      font-size: 15px;
+      margin: 24px 0 10px;
+      padding-left: 10px;
+      border-left: 4px solid #1B5BD7;
+    }
+    p, li { font-size: 14px; line-height: 1.9; color: #4b5563; }
+    ol, ul { padding-left: 22px; }
+    code {
+      background: #eef3fd;
+      color: #1B5BD7;
+      border-radius: 4px;
+      padding: 1px 6px;
+      font-size: 13px;
+    }
+    .note {
+      background: #fffbe8;
+      color: #ed6a0c;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 13px;
+      margin-top: 12px;
+      line-height: 1.7;
+    }
+    /* 手机外观框 */
+    .phone-wrap { flex: 0 0 auto; }
+    .phone {
+      width: 390px;
+      height: 780px;
+      border: 12px solid #1f2937;
+      border-radius: 44px;
+      overflow: hidden;
+      background: #000;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+      display: flex;
+      flex-direction: column;
+    }
+    .phone-bar {
+      background: #1B5BD7;
+      color: #fff;
+      text-align: center;
+      font-size: 13px;
+      padding: 8px 0;
+      flex-shrink: 0;
+    }
+    .phone iframe {
+      width: 100%;
+      flex: 1;
+      border: none;
+      background: #fff;
+    }
+    .phone-caption {
+      text-align: center;
+      color: #969799;
+      font-size: 12px;
+      margin-top: 12px;
+      max-width: 390px;
+      line-height: 1.7;
+    }
+  </style>
+</head>
+<body>
+  <div class="panel">
+    <h1>纪检监察在线考试 · 原生小程序版</h1>
+    <div class="sub">code/exam-miniprogram — H5 考生端的原生微信小程序复刻版（纯 WXML/WXSS/JS，无 uni-app/taro）</div>
+
+    <h2>项目简介</h2>
+    <p>本项目是「纪检监察人员在线考试系统」考生端的原生微信小程序实现，功能与 H5 考生端（code/exam-h5-web）对齐：工号登录、首次强制改密、在线学习（图文/视频/PDF 资料、学习心跳与断点续学）、学习任务、在线考试（答题卡、倒计时服务端校时、答案暂存与断网本地队列、切屏上报、幂等交卷）、日常练习（按法规分类/全库随机抽题、即时判分与解析、练习记录与错题回顾、练习统计）、成绩查询、我的成绩、学习统计、站内信。</p>
+
+    <h2>微信开发者工具导入步骤</h2>
+    <ol>
+      <li>打开微信开发者工具，选择「导入项目」。</li>
+      <li>项目目录选择 <code>code/exam-miniprogram</code>。</li>
+      <li>AppID 已配置为 <code>touristappid</code>（测试号），可直接导入；也可填入自己的小程序 AppID。</li>
+      <li>开发期已通过 <code>project.config.json</code> 的 <code>urlCheck:false</code> 关闭域名校验，可直连内网后端 <code>http://10.110.40.160:8088</code>。</li>
+      <li>编译运行后先进入登录页，测试考生账号：<code>ks001 / Exam@123</code>。</li>
+    </ol>
+    <div class="note">
+      正式发布前需在微信公众平台「开发管理 → 开发设置 → 服务器域名」配置 request 合法域名与 downloadFile 合法域名（资料文件 wx.downloadFile / wx.openDocument 使用）；tabBar 当前为纯文字占位，需补充正式图标资源。
+    </div>
+
+    <h2>页面清单（pages/ 下 17 个页面）</h2>
+    <ul>
+      <li><code>login</code> 登录（工号+密码，terminal=MP，mustChangePassword 跳改密）</li>
+      <li><code>change-password</code> 首次强制改密（PUT /auth/password）</li>
+      <li><code>learn</code> 学习首页（tabBar）：分类筛选 + 资料列表</li>
+      <li><code>learn-tasks</code> 学习任务（TODO/DONE 筛选）</li>
+      <li><code>material-detail</code> 资料详情（rich-text 图文 / 视频 / PDF wx.openDocument + 学习心跳 + 断点续学）</li>
+      <li><code>exam</code> 考试列表（tabBar，type=TODO/HISTORY）</li>
+      <li><code>exam-notice</code> 考前须知确认（POST /app/exams/{id}/enter）</li>
+      <li><code>exam-answer</code> 在线答题（四种题型、答题卡、倒计时校时、暂存、切屏上报、幂等交卷）</li>
+      <li><code>exam-result</code> 成绩结果（未发布 30s 轮询）</li>
+      <li><code>practice</code> 日常练习发起页（tabBar，/app/practice/banks 分类 + /app/practice/start）</li>
+      <li><code>practice-answer</code> 练习答题（一题一页，/app/practice/answer 即时判分 + 解析 + 小结）</li>
+      <li><code>practice-records</code> 练习记录（/app/practice/records，只看错题含解析）</li>
+      <li><code>practice-stat</code> 练习统计（/app/practice/stat，按法规正确率 + 薄弱知识点）</li>
+      <li><code>mine</code> 我的（tabBar：用户信息、入口、退出登录）</li>
+      <li><code>my-scores</code> 我的成绩（/app/stat/my-transcripts）</li>
+      <li><code>learn-stat</code> 学习统计（/app/lstat/personal）</li>
+      <li><code>notices</code> 站内信（/app/notices，支持标记已读/全部已读）</li>
+    </ul>
+
+    <h2>接口配置说明</h2>
+    <p>统一封装在 <code>utils/request.js</code>：</p>
+    <ul>
+      <li>API base：<code>http://10.110.40.160:8088/api/v1</code></li>
+      <li>统一响应 <code>{code, message, data}</code>，code=0 成功，业务错误统一 toast</li>
+      <li>JWT 认证：请求头 <code>Authorization: Bearer &lt;accessToken&gt;</code></li>
+      <li>HTTP 401 / code 10002：refreshToken 静默刷新并重放原请求，失败回登录页</li>
+      <li>code 10010：被踢下线，弹窗提示后回登录页</li>
+      <li><code>__silent</code> 选项支持静默请求（心跳/暂存/校时等不打扰用户）</li>
+    </ul>
+  </div>
+
+  <div class="phone-wrap">
+    <div class="phone">
+      <div class="phone-bar">功能等效预览（H5 界面）</div>
+      <iframe src="http://10.110.40.160:6001" title="H5 考生端预览"></iframe>
+    </div>
+    <div class="phone-caption">
+      上方 iframe 内嵌的是同一后端的 H5 考生端（http://10.110.40.160:6001），仅作功能等效预览；原生小程序的实际界面与交互以微信开发者工具 / 真机为准。
+    </div>
+  </div>
+</body>
+</html>

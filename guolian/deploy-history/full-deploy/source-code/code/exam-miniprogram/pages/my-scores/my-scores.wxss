@@ -1,0 +1,47 @@
+.score-card {
+  margin-top: 24rpx;
+}
+
+.score-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24rpx;
+}
+
+.score-name {
+  flex: 1;
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #323233;
+}
+
+.score-value {
+  font-size: 40rpx;
+  font-weight: 700;
+  color: #07c160;
+}
+
+.score-value.fail {
+  color: #ee0a24;
+}
+
+.score-total {
+  font-size: 24rpx;
+  color: #969799;
+  font-weight: 400;
+}
+
+.score-meta {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  margin: 16rpx 0;
+}
+
+.list-tip {
+  text-align: center;
+  color: #969799;
+  font-size: 24rpx;
+  padding: 24rpx 0 48rpx;
+}

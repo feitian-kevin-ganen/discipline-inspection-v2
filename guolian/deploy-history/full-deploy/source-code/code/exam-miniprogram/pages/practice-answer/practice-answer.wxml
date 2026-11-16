@@ -1,0 +1,58 @@
+<view wx:if="{{session}}">
+  <block wx:if="{{!session.finished && current}}">
+    <view class="progress-row">
+      <text>第 {{session.index + 1}} / {{session.questions.length}} 题</text>
+      <text class="text-muted">已答对 {{session.rightCount}} 题</text>
+    </view>
+    <view class="progress progress-wrap">
+      <view class="progress-inner" style="width: {{progressPct}}%"></view>
+    </view>
+
+    <view class="ques-stem">{{current.stem}}</view>
+
+    <view class="card opt-group">
+      <view
+        wx:for="{{options}}"
+        wx:key="optKey"
+        class="opt-item {{item.cls}}"
+        data-key="{{item.optKey}}"
+        bindtap="onSelect"
+      >
+        <text class="opt-key">{{item.optKey}}.</text>
+        <text class="opt-content">{{item.content}}</text>
+      </view>
+    </view>
+
+    <view wx:if="{{feedback}}" class="card feedback">
+      <view class="tag {{feedback.isRight ? 'tag-success' : 'tag-danger'}} feedback-tag">
+        {{feedback.isRight ? '回答正确' : '回答错误'}}
+      </view>
+      <view wx:if="{{!feedback.isRight}}" class="feedback-line">正确答案：{{correctText}}</view>
+      <view wx:if="{{feedback.analysis}}" class="feedback-line">解析：{{feedback.analysis}}</view>
+      <view wx:if="{{feedback.sourceLaw}}" class="feedback-line text-muted">来源：{{feedback.sourceLaw}}</view>
+    </view>
+
+    <view class="action-btn">
+      <button
+        wx:if="{{!feedback}}"
+        class="btn-primary"
+        disabled="{{!selected || submitting}}"
+        loading="{{submitting}}"
+        bindtap="onSubmit"
+      >提交</button>
+      <button wx:else class="btn-primary" bindtap="onNext">{{isLast ? '查看小结' : '下一题'}}</button>
+    </view>
+  </block>
+
+  <view wx:if="{{session.finished}}" class="summary">
+    <view class="summary-icon">🏅</view>
+    <view class="summary-title">本次练习完成</view>
+    <view class="summary-score">
+      答对 <text class="summary-num">{{session.rightCount}}</text> / 共 {{session.questions.length}} 题
+    </view>
+    <view class="summary-actions">
+      <button class="btn-primary" bindtap="onAgain">再练一次</button>
+      <button class="btn-primary btn-plain" bindtap="goRecords">查看练习记录</button>
+    </view>
+  </view>
+</view>
