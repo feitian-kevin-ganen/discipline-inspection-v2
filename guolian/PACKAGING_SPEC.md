@@ -140,4 +140,72 @@ deploy-increment-YYYYMMDD-vX.tar.gz
 
 - 全量包日期
 - 增量包文件名及对应变更内容
-- 目标机部署根目录（`/root/discipline-inspection`）
+- 目标机部署根目录（`/root/AIExamK3`）
+
+---
+
+## 5. 目标机环境配置
+
+> 以下配置来自最新增量包 `deploy-increment-merged-20261013.tar.gz`，是打包与发布时必须对齐的目标环境。
+
+### 5.1 基础信息
+
+| 项目 | 配置值 |
+|------|--------|
+| 目标机器 IP | `10.64.16.29` |
+| 部署根目录 | `/root/AIExamK3` |
+| 后端端口 | `8088` |
+
+### 5.2 数据库
+
+| 项目 | 配置值 |
+|------|--------|
+| 类型 | PolarDB for MySQL / MySQL 8.0 兼容 |
+| IP / 端口 | `10.64.16.14:4886` |
+| 库名 | `exam_db` |
+| 用户名 | `exam_admin` |
+| 密码 | `z>PD?8Wr_W7h` |
+
+### 5.3 Redis
+
+| 项目 | 配置值 |
+|------|--------|
+| IP / 端口 | `10.64.16.29:6379` |
+| 密码 | `Glgc@2026` |
+
+### 5.4 MinIO（S3 兼容对象存储）
+
+| 项目 | 配置值 |
+|------|--------|
+| endpoint / public-endpoint | `http://10.10.250.100:8333` |
+| access-key | `891fef1e206847e1a073d47fcfe8252b` |
+| secret-key | `B7E41087CA32E871D71316A7BA44D4FAF283D3152073AC003C2B7C448A67D05E40D198F686555F236ED9FC8D86741564` |
+| bucket | `exam-files` |
+
+### 5.5 AI 生题
+
+| 项目 | 配置值 |
+|------|--------|
+| base-url | `http://10.64.251.169:4000` |
+| model | `deepseek-v4-flash` |
+
+### 5.6 数字国联 APP 集成
+
+| 项目 | 配置值 |
+|------|--------|
+| base-url | `http://10.20.8.8:32389` |
+| client-id | `guolian-jijian` |
+
+### 5.7 Nginx 端口对照
+
+| 端口 | 前端 | 静态目录 |
+|------|------|----------|
+| `6009` | PC 管理端 | `/root/AIExamK3/web/admin` |
+| `6002` | PC 用户端 | `/root/AIExamK3/web/user` |
+| `6001` | H5 移动端 | `/root/AIExamK3/web/h5` |
+
+### 5.8 配置变更说明
+
+- 目标机配置以 `deploy-files/config/application-polardb.yml` 为准。
+- 每次发布前必须核对该文件与目标机实际环境是否一致；不一致时先更新配置再打包。
+- `source-code/code/exam-server/src/main/resources/application.yml` 和 `source-code/code/config/application-polardb.yml` 必须与 `deploy-files/config/application-polardb.yml` 保持同步。
