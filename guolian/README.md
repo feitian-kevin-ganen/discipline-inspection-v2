@@ -6,7 +6,7 @@
 
 ```text
 guolian/
-├── PACKAGING_SPEC.md              # 打包发布规约
+├── spec/PACKAGING_SPEC.md         # 打包发布规约（位于项目根目录 spec/ 下）
 ├── README.md                      # 本说明
 └── deploy-history/
     ├── full-deploy/

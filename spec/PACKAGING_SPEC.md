@@ -16,17 +16,24 @@
 full-deploy/
 ├── source-code/          # 目标机部署所需的源代码（即代码工程）
 │   └── code/             # 后端、前端、脚本等源码
-└── deploy-files/         # 目标机要发布的运行内容
-    ├── app/
-    ├── config/
-    ├── data/
-    ├── docs/
-    ├── logs/
-    ├── middleware/
-    ├── README.md
-    ├── run/
-    ├── scripts/
-    └── web/
+└── deploy-files/         # 目标机要发布的运行内容（仅保留压缩包）
+    └── full-deploy-{yyyyMMDD}-v{x}.tar.gz
+```
+
+解压后结构：
+
+```text
+AIExamK3/
+├── app/
+├── config/
+├── data/
+├── docs/
+├── logs/
+├── middleware/
+├── README.md
+├── run/
+├── scripts/
+└── web/
 ```
 
 ### 1.3 内容说明
@@ -34,22 +41,28 @@ full-deploy/
 | 目录/文件 | 归属 | 说明 |
 |-----------|------|------|
 | `source-code/code/` | `source-code` | 项目源码工程，包括 Maven 后端、Vue 前端、脚本源码等。 |
-| `deploy-files/app/` | `deploy-files` | 后端可执行 jar（`exam-server.jar`）。 |
-| `deploy-files/config/` | `deploy-files` | 目标环境外置配置（如 `application-polardb.yml`）。 |
-| `deploy-files/data/` | `deploy-files` | 运行数据，如 `minio/exam-files/`。 |
-| `deploy-files/docs/` | `deploy-files` | 需求、设计、迁移说明等项目资料。 |
-| `deploy-files/logs/` | `deploy-files` | 预留运行日志目录。 |
-| `deploy-files/middleware/` | `deploy-files` | JDK、MinIO、ffmpeg、mysql-tools 等运行依赖。 |
-| `deploy-files/run/` | `deploy-files` | 预留 PID 目录。 |
-| `deploy-files/scripts/` | `deploy-files` | 启动、停止、备份、迁移、校验等脚本。 |
-| `deploy-files/web/` | `deploy-files` | 三端前端构建产物（`admin/`、`user/`、`h5/`）。 |
-| `deploy-files/README.md` | `deploy-files` | 目标机部署说明。 |
+| `deploy-files/full-deploy-*.tar.gz` | `deploy-files` | 目标机全量发布压缩包，解压后顶层为 `AIExamK3/`。 |
+| `AIExamK3/app/` | 压缩包内 | 后端可执行 jar（`exam-server.jar`）。 |
+| `AIExamK3/config/` | 压缩包内 | 目标环境外置配置（如 `application-polardb.yml`）。 |
+| `AIExamK3/data/` | 压缩包内 | 运行数据，如 `minio/exam-files/`。 |
+| `AIExamK3/docs/` | 压缩包内 | 需求、设计、迁移说明等项目资料。 |
+| `AIExamK3/logs/` | 压缩包内 | 预留运行日志目录。 |
+| `AIExamK3/middleware/` | 压缩包内 | JDK、MinIO、ffmpeg、mysql-tools 等运行依赖。 |
+| `AIExamK3/run/` | 压缩包内 | 预留 PID 目录。 |
+| `AIExamK3/scripts/` | 压缩包内 | 启动、停止、备份、迁移、校验等脚本。 |
+| `AIExamK3/web/` | 压缩包内 | 三端前端构建产物（`admin/`、`user/`、`h5/`）。 |
+| `AIExamK3/README.md` | 压缩包内 | 目标机部署说明。 |
 
 ### 1.4 打包要求
 
 - 全量包必须包含**最新编译结果**：后端 `mvn clean package`、前端 `npm run build`。
 - 源码以**展开目录**形式存放，不再保留 `code-src.tar.gz`。
-- 运行内容以**展开目录**形式存放，不再保留 `binary.tar.gz` 等旧命名。
+- 运行内容必须打成单一压缩包：
+  - 命名：`full-deploy-{yyyyMMDD}-v{x}.tar.gz`
+  - 版本号规则：每天从 `v1` 开始，同一天每打一次增加 `0.1`。
+  - 示例：`full-deploy-20261116-v1.tar.gz`、`full-deploy-20261116-v1.1.tar.gz`
+  - 压缩包顶层目录为 `AIExamK3/`，解压到 `/root` 后即为 `/root/AIExamK3`。
+- `deploy-files/` 目录下**只保留压缩包**，不再保留未压缩的 `app/`、`config/` 等原始文件夹。
 
 ### 1.5 源码同步要求
 
