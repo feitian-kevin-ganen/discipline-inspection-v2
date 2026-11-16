@@ -20,8 +20,16 @@ nohup.out
 
 # Deploy history artifacts (generated packages and runtime data)
 guolian/deploy-history/**/*.tar.gz
-guolian/deploy-history/full-deploy/deploy-files/
 guolian/deploy-history/incremental-deploy/
+
+# Deploy-files binary/runtime directories (config/scripts/README are tracked)
+guolian/deploy-history/full-deploy/deploy-files/app/
+guolian/deploy-history/full-deploy/deploy-files/data/
+guolian/deploy-history/full-deploy/deploy-files/docs/
+guolian/deploy-history/full-deploy/deploy-files/logs/
+guolian/deploy-history/full-deploy/deploy-files/middleware/
+guolian/deploy-history/full-deploy/deploy-files/run/
+guolian/deploy-history/full-deploy/deploy-files/web/
 
 # Large binaries (kept locally but not tracked)
 **/code/tools/ffmpeg
