@@ -51,6 +51,17 @@ full-deploy/
 - 源码以**展开目录**形式存放，不再保留 `code-src.tar.gz`。
 - 运行内容以**展开目录**形式存放，不再保留 `binary.tar.gz` 等旧命名。
 
+### 1.5 源码同步要求
+
+**每次发布打包目标机全量包时，必须同步更新并推送远端 `guolian/deploy-history/full-deploy/source-code/` 目录。**
+
+具体操作：
+
+1. 将本次构建所使用的源码同步到 `guolian/deploy-history/full-deploy/source-code/code/`。
+2. 确保 `source-code/` 下不包含 `node_modules/`、`target/`、`dist/` 等编译产物。
+3. 将 `source-code/` 的变更与本次发布说明一起提交到 Git，并推送至远端仓库。
+4. 远端仓库中的源码版本必须与本次发布的 `deploy-files/` 版本一一对应。
+
 ---
 
 ## 2. 增量包（incremental-deploy）
@@ -115,7 +126,11 @@ deploy-increment-YYYYMMDD-vX.tar.gz
   - `guolian/deploy-history/**/*.tar.gz`
   - `guolian/deploy-history/full-deploy/deploy-files/data/minio/exam-files/`
   - `.venv*/`
-- Git 仓库只保存：源码、配置、设计/需求文档、打包规约、脚本源码等。
+- Git 仓库保存的内容包括：
+  - 源码（根目录 `code/` 以及 `guolian/deploy-history/full-deploy/source-code/code/`）
+  - 配置、设计/需求文档、打包规约
+  - 脚本源码等。
+- `guolian/deploy-history/full-deploy/source-code/` 必须随每次全量发布同步更新并推送。
 
 ---
 
