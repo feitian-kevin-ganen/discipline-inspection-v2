@@ -1,0 +1,7 @@
+<!-- pages/index/index.wxml —— 整页 web-view，加载 H5 考生端 -->
+<web-view
+  src="{{h5Url}}"
+  bindmessage="onWebViewMessage"
+  bindload="onWebViewLoad"
+  binderror="onWebViewError"
+></web-view>

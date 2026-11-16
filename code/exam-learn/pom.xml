@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.group.exam</groupId>
+        <artifactId>exam-parent</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <artifactId>exam-learn</artifactId>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.group.exam</groupId>
+            <artifactId>exam-common</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.group.exam</groupId>
+            <artifactId>exam-system</artifactId>
+        </dependency>
+        <!-- PDF 逐页转图片：前端只加载 JPEG 页图，避免 PDF 文件流被 IDM 等下载工具拦截 -->
+        <dependency>
+            <groupId>org.apache.pdfbox</groupId>
+            <artifactId>pdfbox</artifactId>
+            <version>2.0.31</version>
+        </dependency>
+        <!-- 外链解析：抓取外网文章并提取正文 HTML（图文资料外链导入） -->
+        <dependency>
+            <groupId>org.jsoup</groupId>
+            <artifactId>jsoup</artifactId>
+            <version>1.17.2</version>
+        </dependency>
+    </dependencies>
+
+</project>

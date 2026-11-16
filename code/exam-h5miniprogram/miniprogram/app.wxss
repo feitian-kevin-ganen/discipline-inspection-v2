@@ -1,0 +1,4 @@
+/* app.wxss —— 全局样式（壳子几乎无原生界面，仅保留基础重置） */
+page {
+  background-color: #f5f6f8;
+}

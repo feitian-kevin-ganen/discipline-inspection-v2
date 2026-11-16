@@ -1,0 +1,32 @@
+# Build outputs
+**/target/
+**/dist/
+**/.vite/
+**/build/
+
+# Dependencies
+**/node_modules/
+
+# Virtual environments
+.venv*/
+venv*/
+
+# Runtime / logs
+**/logs/
+**/run/
+*.log
+*.pid
+nohup.out
+
+# Deploy history artifacts (generated packages and runtime data)
+guolian/deploy-history/**/*.tar.gz
+guolian/deploy-history/full-deploy/deploy-files/
+guolian/deploy-history/full-deploy/source-code/
+guolian/deploy-history/incremental-deploy/
+
+# OS / IDE
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo

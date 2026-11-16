@@ -1,0 +1,24 @@
+<view class="notice-body">
+  <view class="exam-title">{{examName}}</view>
+
+  <view class="card">
+    <view class="notice-head">请仔细阅读以下考试须知</view>
+    <view class="notice-text">
+      <view>1. 请在考试时间窗口内进入考试，迟到超过规定时限将无法进入。</view>
+      <view>2. 考试期间倒计时以服务端时间为准，到时系统将自动收卷。</view>
+      <view>3. 作答内容实时自动保存，断网时将保存在本机并在网络恢复后自动同步。</view>
+      <view>4. 考试期间请勿切换页面或切出应用，系统会记录切屏次数，超限将被强制交卷。</view>
+      <view>5. 同一账号同一时间仅允许一个终端在线答题，其他终端登录将导致本终端被踢下线。</view>
+      <view>6. 交卷前请确认作答情况，交卷后不可修改。</view>
+    </view>
+  </view>
+
+  <view class="notice-check" bindtap="onConfirmChange">
+    <view class="checkbox {{confirmed ? 'checkbox-on' : ''}}">{{confirmed ? '✓' : ''}}</view>
+    <text>我已阅读并同意遵守考试须知</text>
+  </view>
+
+  <view class="notice-btn">
+    <button class="btn-primary" disabled="{{!confirmed}}" loading="{{entering}}" bindtap="onEnter">开始考试</button>
+  </view>
+</view>

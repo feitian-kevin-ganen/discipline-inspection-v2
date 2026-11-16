@@ -1,0 +1,99 @@
+.result-banner {
+  text-align: center;
+  padding: 64rpx 32rpx;
+  background: #fff;
+  margin-bottom: 24rpx;
+}
+
+.banner-icon {
+  font-size: 80rpx;
+}
+
+.result-banner-title {
+  font-size: 34rpx;
+  font-weight: 600;
+  margin: 16rpx 0;
+  color: #323233;
+}
+
+.score-panel {
+  text-align: center;
+  padding: 56rpx 32rpx;
+  background: #fff;
+  margin-bottom: 24rpx;
+}
+
+.score-value {
+  font-size: 88rpx;
+  font-weight: 700;
+  color: #1B5BD7;
+}
+
+.score-total {
+  font-size: 32rpx;
+  color: #969799;
+  font-weight: 400;
+}
+
+.score-tags {
+  margin-top: 24rpx;
+  display: flex;
+  justify-content: center;
+  gap: 16rpx;
+}
+
+.score-sub {
+  margin-top: 20rpx;
+}
+
+.detail-card {
+  margin-top: 0;
+  margin-bottom: 24rpx;
+}
+
+.detail-head {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  margin-bottom: 16rpx;
+}
+
+.detail-stem {
+  font-size: 28rpx;
+  line-height: 1.7;
+  color: #323233;
+  margin-bottom: 16rpx;
+  word-break: break-word;
+}
+
+.detail-answers {
+  font-size: 26rpx;
+  color: #646566;
+  line-height: 1.8;
+}
+
+.ans-right {
+  color: #07c160;
+}
+
+.ans-wrong {
+  color: #ee0a24;
+}
+
+.detail-analysis {
+  margin-top: 16rpx;
+  padding: 16rpx;
+  background: #f7f8fa;
+  border-radius: 12rpx;
+  font-size: 26rpx;
+  color: #646566;
+  line-height: 1.7;
+}
+
+.no-analysis {
+  text-align: center;
+}
+
+.back-btn {
+  margin: 32rpx;
+}
