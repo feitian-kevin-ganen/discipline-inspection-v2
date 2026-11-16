@@ -5,10 +5,10 @@ spring:
   application:
     name: exam-server
   datasource:
-    driver-class-name: org.postgresql.Driver
-    url: jdbc:postgresql://127.0.0.1:5434/exam_db?stringtype=unspecified
-    username: postgres
-    password: postgres
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://127.0.0.1:14397/exam_db?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true&zeroDateTimeBehavior=convertToNull
+    username: exam
+    password: Exam@163db
     hikari:
       maximum-pool-size: 5
       minimum-idle: 1
@@ -49,13 +49,11 @@ exam:
     refresh-expire-seconds: 604800
   minio:
     endpoint: http://127.0.0.1:9000
-    # 预签名 URL 对外地址（外网可达）；不配置则回退 endpoint
-    public-endpoint: http://10.110.10.160:9000
+    public-endpoint: http://10.110.10.163:9000
     access-key: minioadmin
     secret-key: minioadmin
     bucket: exam-files
-  # ffmpeg 可执行文件路径：视频资料上传时自动抽帧生成封面；默认取 PATH 中的 ffmpeg
-  ffmpeg-path: /home/cloud/projects/AIExamK3/code/tools/ffmpeg
+  ffmpeg-path: /root/discipline-inspection/middleware/ffmpeg
 
 logging:
   level:
