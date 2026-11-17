@@ -55,10 +55,10 @@ bash /root/fully-deploy/AIExamK3/scripts/deploy_release.sh all --yes
 | 子命令 | 做什么 |
 |--------|--------|
 | `check` | 上面的发布前检查 |
-| `backup` | 调 `/root/AIExamK3/scripts/backup.sh`：数据库 `exam_db.sql.gz`、应用包 `app-package.tar.gz`、MinIO 数据 `minio-data.tar.gz`、配置，落到 `/root/AIExamK3-backup/<时间戳>/` |
+| `backup` | 调 `/root/AIExamK3/scripts/backup.sh`：数据库 `exam_db.sql.gz`、应用包 `app-package.tar.gz`、对象存储本地副本 `minio-data.tar.gz`（如存在）、配置，落到 `/root/AIExamK3-backup/<时间戳>/` |
 | `apply` | `app`、`docs`、`README.md` 增量覆盖；`web`、`scripts` 用 `--delete` 全量同步（清掉旧 hash 静态文件与废弃 nginx 配置）；**不覆盖** live 的 `config/application-polardb.yml` |
 | `lb` | 站点配置 `cra.conf` → `discipline-inspection.conf` 改名，`-t` 测试通过后 `-s reload` |
-| `restart` | `stop_all.sh` 后 `start_all.sh`，只重启本项目后端/Redis/MinIO，LB 与数据库不动 |
+| `restart` | `stop_all.sh` 后 `start_all.sh`，只重启本项目后端/Redis（目标机对象存储为远端 OSS，不在本机），LB 与数据库不动 |
 | `verify` | 三端入口 200 + `text/html`、首页引用带对应 base、后端 `/api/v1/health/db`，通过后再跑 `verify_api.py` |
 
 也可以分步执行（每一步都会交互确认，加 `--yes` 免确认）：
@@ -186,6 +186,7 @@ bash /root/AIExamK3/scripts/start_all.sh
 
 ## 七、已知事项
 
+- 目标机文件存储是**远端 OSS**（S3 兼容；当前配置端点 `http://10.10.250.100:8333`，bucket `exam-files`），不是本机 MinIO。应用配置前缀仍为 `exam.minio.*`，无需改名；`start_all.sh` 只做连通性探测，不会启动本地 MinIO，`backup.sh` 的 `minio-data.tar.gz` 仅在本地副本存在时生成。
 - 本次**无数据库结构变更**，包内无 `db/` 补丁。
 - `apply` 会以 staging 的 `scripts/` 全量替换 live 的 `scripts/`。若现场曾手工改过 live 的脚本，先跑 `backup`（`all` 已包含），差异可从备份里取回。
 - 目标机若装了 `rsync`，同步走 `rsync -a --delete`；没装则退化为 `cp -a`（`--delete` 场景先清空目录再拷贝），行为一致只是更慢。

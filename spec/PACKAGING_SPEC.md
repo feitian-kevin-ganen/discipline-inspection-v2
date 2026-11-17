@@ -48,10 +48,10 @@ AIExamK3/
 | `deploy-files/full-deploy-*.tar.gz` | `deploy-files` | 目标机全量发布压缩包，解压后顶层为 `AIExamK3/`。 |
 | `AIExamK3/app/` | 压缩包内 | 后端可执行 jar（`exam-server.jar`）。 |
 | `AIExamK3/config/` | 压缩包内 | 目标环境外置配置（如 `application-polardb.yml`）。 |
-| `AIExamK3/data/` | 压缩包内 | 运行数据，如 `minio/exam-files/`。 |
+| `AIExamK3/data/` | 压缩包内 | 运行数据，如 `minio/exam-files/`（主存储在远端 OSS，通常为空）。 |
 | `AIExamK3/docs/` | 压缩包内 | 需求、设计、迁移说明等项目资料。 |
 | `AIExamK3/logs/` | 压缩包内 | 预留运行日志目录。 |
-| `AIExamK3/middleware/` | 压缩包内 | JDK、MinIO、ffmpeg、mysql-tools 等运行依赖。 |
+| `AIExamK3/middleware/` | 压缩包内 | JDK、MinIO（仅本机兜底）、ffmpeg、mysql-tools 等运行依赖。 |
 | `AIExamK3/run/` | 压缩包内 | 预留 PID 目录。 |
 | `AIExamK3/scripts/` | 压缩包内 | 启动、停止、备份、发布、迁移、校验等脚本。 |
 | `AIExamK3/web/` | 压缩包内 | 三端前端构建产物（`admin/`、`user/`、`h5/`）。 |
@@ -198,11 +198,13 @@ deploy-increment-YYYYMMDD-vX.tar.gz
 | IP / 端口 | `10.64.16.29:6379` |
 | 密码 | `Glgc@2026` |
 
-### 5.4 MinIO（S3 兼容对象存储）
+### 5.4 OSS（S3 兼容对象存储）
+
+> 目标机的文件存储是 **OSS**，不是本机 MinIO。应用仍用 MinIO SDK（S3 协议）访问，配置前缀 `exam.minio.*` 为历史命名，**值指向 OSS 即可，不需要改键名**。
 
 | 项目 | 配置值 |
 |------|--------|
-| endpoint / public-endpoint | `http://10.10.250.100:8333` |
+| endpoint / public-endpoint | `http://10.10.250.100:8333`（当前配置值；OSS 实际端点不同时只改这两项） |
 | access-key | `891fef1e206847e1a073d47fcfe8252b` |
 | secret-key | `B7E41087CA32E871D71316A7BA44D4FAF283D3152073AC003C2B7C448A67D05E40D198F686555F236ED9FC8D86741564` |
 | bucket | `exam-files` |
@@ -236,6 +238,7 @@ deploy-increment-YYYYMMDD-vX.tar.gz
 - LB 主配置：`/data/InforSuiteLB/conf/InforSuiteLB.conf`；站点配置：`/data/InforSuiteLB/conf/discipline-inspection.conf`（历史文件名 `cra.conf`，已改名）。
 - LB 可执行：`/data/InforSuiteLB/sbin/InforSuiteLB`；测试配置 `-p <LB_HOME> -c <conf> -t`，重载 `-s reload`。
 - 增量包只有在**确实下发 LB 配置变更**时才包含 `lb/conf/`，并在 `UPDATE.md` 写明测试与重载命令。
+- 对象存储：目标机为 OSS（S3 兼容，`http://10.10.250.100:8333`，bucket `exam-files`）；`middleware/minio`、`data/minio` 只是本机兜底资产，`start_all.sh` 不会在目标机启动本地 MinIO。
 - 目标机数据库客户端：`/root/migration/tools/mysql/mysql.sh`，备份优先使用同目录 `bin/mysqldump`。
 
 ### 5.8 配置变更说明
@@ -243,7 +246,7 @@ deploy-increment-YYYYMMDD-vX.tar.gz
 - 目标机配置以 `deploy-files/config/application-polardb.yml` 为准。
 - 每次发布前必须核对该文件与目标机实际环境是否一致；不一致时先更新配置再打包。
 - `source-code/code/exam-server/src/main/resources/application.yml` 和 `source-code/code/config/application-polardb.yml` 必须与 `deploy-files/config/application-polardb.yml` 保持同步。
-- **注意**：`source-code/code/exam-server/src/main/resources/application.yml` 是**目标机配置**（MySQL/PolarDB + 目标 Redis/MinIO），不是本机开发配置。用 `rsync code/ → source-code/code/` 同步源码后，必须把该文件恢复为目标机版本，禁止把本机 PostgreSQL 配置带进 `source-code/`。
+- **注意**：`source-code/code/exam-server/src/main/resources/application.yml` 是**目标机配置**（MySQL/PolarDB + 目标 Redis/OSS），不是本机开发配置。用 `rsync code/ → source-code/code/` 同步源码后，必须把该文件恢复为目标机版本，禁止把本机 PostgreSQL 配置带进 `source-code/`。
 
 ### 5.9 发布流程（staging → live）
 
@@ -274,7 +277,7 @@ bash /root/fully-deploy/AIExamK3/scripts/deploy_release.sh all --yes # backup→
 - `apply` **不覆盖** live 的 `config/application-polardb.yml`，不一致时只写 `.new` 并打印 diff。
 - `apply` 默认跳过 `middleware/`、`data/`，只有 `--with-runtime` 才同步。
 - `lb` 将 `conf/cra.conf` 改名为 `conf/discipline-inspection.conf`；若主配置仍 `include` 旧名则报错退出且**不 reload**。
-- `restart` 只停止/启动本项目进程（后端/Redis/MinIO），不动 LB 与数据库。
+- `restart` 只停止/启动本项目进程（后端/Redis），不动 LB、数据库与远端 OSS。
 - `verify` 校验三端入口 `200 + text/html`、首页引用带对应 base、`/api/v1/health/db`，通过后才跑 `verify_api.py`。
 - 路径可用 `SRC_DIR`、`APP_DIR`、`LB_HOME` 环境变量覆盖；支持 `--dry-run`。
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# AIExamK3 目标机一键停止：后端 / Redis / MinIO
+# AIExamK3 目标机一键停止：后端 / Redis / 本机 MinIO 兜底进程（对象存储为远端 OSS）
 # 不处理 InforSuiteLB 与数据库；LB 配置重载用 start_all.sh reload-lb
 set -u
 
@@ -16,4 +16,4 @@ for f in "$RUN_DIR"/*.pid; do
   rm -f "$f"
 done
 
-echo "后端 / Redis / MinIO 已停止。InforSuiteLB 与数据库保持运行。"
+echo "后端 / Redis / 本机 MinIO 兜底进程已停止。InforSuiteLB、数据库与远端 OSS 不受影响。"

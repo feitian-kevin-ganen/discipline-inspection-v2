@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # AIExamK3 目标机一键启动脚本
 #   后端：8088（jar + config/application-polardb.yml）
-#   Redis / MinIO：从配置读取地址，本机才启动，远端只做连通性检查
+#   Redis / 对象存储（目标机为远端 OSS）：本机才启动，远端只做连通性检查
 #   反向代理：目标机为 InforSuiteLB（/data/InforSuiteLB），不是 Nginx
 # 用法：
-#   ./start_all.sh            启动 Redis/MinIO/后端，并打印状态
+#   ./start_all.sh            启动 Redis/对象存储探测/后端，并打印状态
 #   ./start_all.sh status     只看状态
 #   ./start_all.sh reload-lb  检查并重载 InforSuiteLB 配置
 set -u
@@ -85,10 +85,10 @@ start_redis() {
   echo "[redis] 启动中 pid $(cat "$RUN_DIR/redis.pid")，端口 $REDIS_PORT，日志 $LOG_DIR/redis.log"
 }
 
-# ---------------- MinIO ----------------
+# ---------------- 对象存储（OSS；本机兜底时启动 MinIO） ----------------
 start_minio() {
   if [ -z "${MINIO_EP:-}" ]; then
-    echo "[minio] 配置未读到 endpoint，跳过"
+    echo "[storage] 配置未读到 endpoint，跳过"
     return 0
   fi
   local hp="${MINIO_EP#*://}"
@@ -97,24 +97,24 @@ start_minio() {
   [ "$port" = "$hp" ] && port=9000
 
   if tcp_open "$host" "$port"; then
-    echo "[minio] 对象存储 $MINIO_EP 已可用"
+    echo "[storage] 对象存储 $MINIO_EP 已可用"
     return 0
   fi
 
   if ! is_local_host "$host"; then
-    echo "[minio] 配置指向远端 $MINIO_EP 且不可达，本机不启动。"
-    echo "[minio] 请检查网络/负载；确实需要本机兜底时执行：MINIO_LOCAL=1 $0 start"
+    echo "[storage] 配置指向远端 $MINIO_EP 且不可达，本机不启动。"
+    echo "[storage] 请检查网络/负载；确实需要本机兜底时执行：MINIO_LOCAL=1 $0 start"
     [ "${MINIO_LOCAL:-0}" = "1" ] || return 0
     port=9000
   fi
 
   if pid_alive "$RUN_DIR/minio.pid"; then
-    echo "[minio] 已在运行 (pid $(cat "$RUN_DIR/minio.pid"))"
+    echo "[storage] 已在运行 (pid $(cat "$RUN_DIR/minio.pid"))"
     return 0
   fi
   local bin="$APP_DIR/middleware/minio"
   if [ ! -x "$bin" ]; then
-    echo "[minio] 未找到 $bin，跳过"
+    echo "[storage] 未找到 $bin，跳过"
     return 1
   fi
   local ak sk
@@ -126,7 +126,7 @@ start_minio() {
   nohup "$bin" server "$APP_DIR/data/minio" --address ":$port" --console-address ":$((port + 1))" \
     > "$LOG_DIR/minio.log" 2>&1 &
   echo $! > "$RUN_DIR/minio.pid"
-  echo "[minio] 启动中 pid $(cat "$RUN_DIR/minio.pid")，端口 $port，日志 $LOG_DIR/minio.log"
+  echo "[storage] 启动中 pid $(cat "$RUN_DIR/minio.pid")，端口 $port，日志 $LOG_DIR/minio.log"
 }
 
 # ---------------- 后端 ----------------

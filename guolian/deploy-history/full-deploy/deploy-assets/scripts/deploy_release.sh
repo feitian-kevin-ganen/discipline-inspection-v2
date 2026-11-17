@@ -7,7 +7,7 @@
 #
 # 用法（在目标机 root 下执行）：
 #   bash /root/fully-deploy/AIExamK3/scripts/deploy_release.sh check      # 发布前检查，不落盘
-#   bash /root/fully-deploy/AIExamK3/scripts/deploy_release.sh backup     # 备份在运目录（库+包+MinIO+配置）
+#   bash /root/fully-deploy/AIExamK3/scripts/deploy_release.sh backup     # 备份在运目录（库+包+对象存储本地副本+配置）
 #   bash /root/fully-deploy/AIExamK3/scripts/deploy_release.sh apply      # 把 staging 同步到 live
 #   bash /root/fully-deploy/AIExamK3/scripts/deploy_release.sh lb         # 校正 LB 站点配置文件名并测试重载
 #   bash /root/fully-deploy/AIExamK3/scripts/deploy_release.sh restart    # 停止并重新启动应用进程
@@ -282,7 +282,7 @@ cmd_restart() {
   say "================ 重启应用进程 ================"
   [ -f "$APP_DIR/scripts/stop_all.sh" ] || die "缺少 $APP_DIR/scripts/stop_all.sh"
   [ -f "$APP_DIR/scripts/start_all.sh" ] || die "缺少 $APP_DIR/scripts/start_all.sh"
-  confirm "将停止并重启 $APP_DIR 下的后端/Redis/MinIO（LB 与数据库不动），继续？" || die "已取消"
+  confirm "将停止并重启 $APP_DIR 下的后端/Redis（对象存储为远端 OSS，LB 与数据库不动），继续？" || die "已取消"
   run bash "$APP_DIR/scripts/stop_all.sh"
   sleep 2
   run bash "$APP_DIR/scripts/start_all.sh"
@@ -357,10 +357,10 @@ usage() {
 发布脚本：staging（全量包解压目录）→ live（在运目录）
 
   bash deploy_release.sh check     发布前检查（不改动任何文件）
-  bash deploy_release.sh backup    备份在运目录（数据库/应用包/MinIO 数据/配置）
+  bash deploy_release.sh backup    备份在运目录（数据库/应用包/对象存储本地副本/配置）
   bash deploy_release.sh apply     同步 app/web/scripts/docs/README，配置不覆盖
   bash deploy_release.sh lb        校正 LB 站点配置文件名并测试、重载
-  bash deploy_release.sh restart   停止并重启后端/Redis/MinIO（LB 与数据库不动）
+  bash deploy_release.sh restart   停止并重启后端/Redis（LB 与数据库不动）
   bash deploy_release.sh verify    三端入口 + 首页 base + 后端健康检查
   bash deploy_release.sh all       check → backup → apply → lb → restart → verify
 

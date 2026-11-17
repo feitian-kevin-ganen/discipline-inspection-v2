@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # AIExamK3 目标机一键备份脚本
-# 备份内容：数据库、应用包（app/config/web/scripts/middleware/README）、MinIO 数据
+# 备份内容：数据库、应用包（app/config/web/scripts/middleware/README）、对象存储本地副本（如有）
 # 用法：
 #   bash /root/AIExamK3/scripts/backup.sh
 #   bash /root/AIExamK3/scripts/backup.sh /自定义备份目录 保留份数
@@ -76,15 +76,15 @@ tar -czf "$BACKUP_DIR/app-package.tar.gz" \
 echo "[backup] 应用包备份完成：$BACKUP_DIR/app-package.tar.gz"
 
 # -------------------------------------------------
-# 5. 备份 MinIO 数据
+# 5. 备份对象存储本地副本（目标机主存储为远端 OSS，本目录通常不存在）
 # -------------------------------------------------
 if [ -d "$APP_DIR/data/minio/exam-files" ]; then
-  echo "[backup] 备份 MinIO 数据到 minio-data.tar.gz ..."
+  echo "[backup] 备份对象存储本地副本到 minio-data.tar.gz ..."
   tar -czf "$BACKUP_DIR/minio-data.tar.gz" \
     -C "$APP_DIR/data/minio" exam-files
-  echo "[backup] MinIO 数据备份完成：$BACKUP_DIR/minio-data.tar.gz"
+  echo "[backup] 对象存储本地副本备份完成：$BACKUP_DIR/minio-data.tar.gz"
 else
-  echo "[backup] 警告：未找到 $APP_DIR/data/minio/exam-files，跳过 MinIO 数据备份"
+  echo "[backup] 提示：未找到 $APP_DIR/data/minio/exam-files（主存储在远端 OSS），跳过本地副本备份"
 fi
 
 # -------------------------------------------------
@@ -97,7 +97,7 @@ cat > "$BACKUP_DIR/manifest.txt" <<EOF
 文件列表:
   - exam_db.sql.gz      数据库 SQL 导出
   - app-package.tar.gz  应用包（app/config/web/scripts/middleware/README.md）
-  - minio-data.tar.gz   MinIO exam-files 数据
+  - minio-data.tar.gz   对象存储本地副本（如有）
 EOF
 echo "[backup] 清单文件：$BACKUP_DIR/manifest.txt"
 

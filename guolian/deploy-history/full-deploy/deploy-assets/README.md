@@ -11,7 +11,7 @@
 | 数据库 | 10.64.16.14:4886 / exam_db（PolarDB-X） |
 | 数据库客户端 | /root/migration/tools/mysql/（mysql.sh、bin/mysqldump） |
 | Redis | 10.64.16.29:6379（带密码，见 config/application-polardb.yml） |
-| MinIO（对象存储） | http://10.10.250.100:8333，bucket `exam-files` |
+| OSS（S3 兼容对象存储） | 当前配置端点 `http://10.10.250.100:8333`，bucket `exam-files`；应用配置前缀沿用 `exam.minio` |
 | 反向代理 | InforSuiteLB，安装目录 /data/InforSuiteLB |
 
 ## 目录说明
@@ -19,20 +19,20 @@
 ```
 /root/AIExamK3
 ├── app/exam-server.jar              # 后端 jar（含 PolarDB-X/MySQL 驱动）
-├── config/application-polardb.yml   # 目标环境外置配置（DB/Redis/MinIO/AI 等）
+├── config/application-polardb.yml   # 目标环境外置配置（DB/Redis/对象存储/AI 等）
 ├── web/admin/                       # PC 管理端静态产物（base=/mgmt/）
 ├── web/user/                        # PC 用户端静态产物（base=/learning-web/）
 ├── web/h5/                          # H5 移动端静态产物（base=/learning-h5/）
 ├── middleware/
 │   ├── jdk21/                       # Temurin JDK 21.0.12
-│   ├── minio                        # MinIO 服务端二进制（本机兜底时使用）
+│   ├── minio                        # MinIO 服务端二进制（目标机已改用 OSS，仅作本机兜底）
 │   ├── ffmpeg                       # 视频抽帧工具
 │   └── mysql-tools/                 # 随包 mysqldump/mysql（目标机无客户端时兜底）
-├── data/minio/exam-files/           # MinIO 对象数据（本地副本/兜底，主存储为远端 10.10.250.100）
+├── data/minio/exam-files/           # 对象存储本地副本（主存储为 OSS 10.10.250.100:8333，通常为空）
 ├── scripts/
-│   ├── start_all.sh                 # 一键启动（Redis/MinIO/后端）
+│   ├── start_all.sh                 # 一键启动（Redis/对象存储探测/后端）
 │   ├── stop_all.sh                  # 一键停止（保留 LB 与数据库）
-│   ├── backup.sh                    # 一键备份（数据库/应用包/MinIO 数据/配置）
+│   ├── backup.sh                    # 一键备份（数据库/应用包/对象存储副本/配置）
 │   ├── deploy_release.sh            # staging → live 发布脚本（check/backup/apply/lb/restart/verify/all）
 │   ├── pg_to_mysql.py               # PostgreSQL → MySQL 数据迁移脚本
 │   ├── verify_api.py                # API 端到端校验脚本
@@ -47,7 +47,7 @@
 - 麒麟 V10 / CentOS / Ubuntu 等 Linux x86_64
 - 后端依赖的外部 MySQL 已就绪：`10.64.16.14:4886` 上的 `exam_db`
 - Redis 已就绪：`10.64.16.29:6379`（密码见 `config/application-polardb.yml`）
-- MinIO 已就绪：`http://10.10.250.100:8333`，bucket `exam-files`
+- OSS 已就绪（当前配置端点 `http://10.10.250.100:8333`，bucket `exam-files`；端点不同时改配置，不改代码）
 - **InforSuiteLB 已安装并配置**（不是 Nginx）：`/data/InforSuiteLB`，主配置 `conf/InforSuiteLB.conf`，站点配置 `conf/discipline-inspection.conf`（历史文件名 `cra.conf`，已改名）
 - 放行端口：8088（后端）、6001（H5）、6002（PC 用户端）、6009（管理端）
 
@@ -94,6 +94,23 @@ curl -sI http://127.0.0.1:6001/learning-h5/ | head -1
 > 首次安装（live 目录还不存在或缺少中间件）时，先手动把 staging 的内容整体拷到 `/root/AIExamK3`：
 > `mkdir -p /root/AIExamK3 && cp -a /root/fully-deploy/AIExamK3/. /root/AIExamK3/`
 > 之后再走 `deploy_release.sh`；需要连 `middleware/`、`data/` 一起同步时加 `--with-runtime`。
+
+## 对象存储说明（OSS，非本机 MinIO）
+
+目标机的文件存储是 **OSS**（S3 兼容对象存储）。当前目标配置的端点是 `http://10.10.250.100:8333`，bucket `exam-files`；若 OSS 实际端点不同，只改下面两个地址即可。
+应用侧仍使用 MinIO SDK（S3 协议）与历史配置前缀 `exam.minio.*`，因此**配置项名不需要改**，只改值即可：
+
+```yaml
+exam:
+  minio:
+    endpoint: http://10.10.250.100:8333
+    public-endpoint: http://10.10.250.100:8333   # 预签名 URL 对外地址
+    access-key: <OSS AK>
+    secret-key: <OSS SK>
+    bucket: exam-files
+```
+
+`start_all.sh` 只对该 endpoint 做连通性探测，**不会在目标机启动本地 MinIO**；`middleware/minio` 与 `data/minio` 仅作本机兜底，备份时缺失会自动跳过。
 
 ## InforSuiteLB 说明（反向代理，非 Nginx）
 
@@ -149,7 +166,7 @@ bash /root/AIExamK3/scripts/backup.sh /data/backups 7
 
 - `exam_db.sql.gz`：数据库 `exam_db` 的 SQL 导出
 - `app-package.tar.gz`：应用包（`app/`、`config/`、`web/`、`scripts/`、`middleware/`、`README.md`）
-- `minio-data.tar.gz`：`data/minio/exam-files` 本地对象数据
+- `minio-data.tar.gz`：`data/minio/exam-files` 本地副本（主存储在 OSS，该目录通常不存在，缺失时自动跳过）
 - `manifest.txt`：备份清单
 - `backup.log`：备份日志
 
@@ -161,7 +178,7 @@ bash /root/AIExamK3/scripts/backup.sh /data/backups 7
 | PC 用户端 | http://10.64.16.29:6002/learning-web/ |
 | H5 端 | http://10.64.16.29:6001/learning-h5/ |
 | 后端 API | http://127.0.0.1:8088/api/v1 |
-| MinIO 控制台 | http://10.10.250.100:8333（远端对象存储） |
+| 对象存储 OSS | 当前配置端点 http://10.10.250.100:8333（S3 兼容） |
 
 默认账号参见源码 `code/README.md`。
 
@@ -173,7 +190,7 @@ bash /root/AIExamK3/scripts/backup.sh /data/backups 7
 S=/root/fully-deploy/AIExamK3/scripts/deploy_release.sh
 
 bash $S check      # 发布前检查：jar/三端 base/配置差异/进程/磁盘/LB 配置，不改动文件
-bash $S backup     # 备份：exam_db.sql.gz + app-package.tar.gz + minio-data.tar.gz + 配置
+bash $S backup     # 备份：exam_db.sql.gz + app-package.tar.gz + 对象存储本地副本（如存在）+ 配置
 bash $S apply      # 同步 app/docs/README 增量，web/scripts 全量（--delete）
 bash $S lb         # cra.conf → discipline-inspection.conf，-t 通过后 -s reload
 bash $S restart    # stop_all.sh + start_all.sh（只动本项目进程）
