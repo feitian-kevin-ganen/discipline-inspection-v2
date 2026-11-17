@@ -16,6 +16,7 @@
 full-deploy/
 ├── source-code/          # 目标机部署所需的源代码（即代码工程）
 │   └── code/             # 后端、前端、脚本等源码
+├── deploy-assets/        # 发布包内可变文本资产的权威副本（README.md、scripts/）
 └── deploy-files/         # 目标机要发布的运行内容（仅保留压缩包）
     └── full-deploy-{yyyyMMDD}-v{x}.tar.gz
 ```
@@ -41,6 +42,8 @@ AIExamK3/
 | 目录/文件 | 归属 | 说明 |
 |-----------|------|------|
 | `source-code/code/` | `source-code` | 项目源码工程，包括 Maven 后端、Vue 前端、脚本源码等。 |
+| `deploy-assets/README.md` | `deploy-assets` | 发布包内 `README.md` 的权威副本，打包时复制进压缩包根目录。 |
+| `deploy-assets/scripts/` | `deploy-assets` | 发布包内 `scripts/` 的权威副本（`start_all.sh`、`stop_all.sh`、`backup.sh`、`verify_*.py` 等）。 |
 | `deploy-files/full-deploy-*.tar.gz` | `deploy-files` | 目标机全量发布压缩包，解压后顶层为 `AIExamK3/`。 |
 | `AIExamK3/app/` | 压缩包内 | 后端可执行 jar（`exam-server.jar`）。 |
 | `AIExamK3/config/` | 压缩包内 | 目标环境外置配置（如 `application-polardb.yml`）。 |
@@ -55,7 +58,8 @@ AIExamK3/
 
 ### 1.4 打包要求
 
-- 全量包必须包含**最新编译结果**：后端 `mvn clean package`、前端 `npm run build`。
+- 全量包必须包含**最新编译结果**：后端 `mvn clean package`、前端 `npm run build:target`（三端必须带目标机 base，见 5.7）。
+- 包内**不得出现 nginx 配置或 nginx 启动逻辑**：目标机反向代理是 InforSuiteLB。
 - 源码以**展开目录**形式存放，不再保留 `code-src.tar.gz`。
 - 运行内容必须打成单一压缩包：
   - 命名：`full-deploy-{yyyyMMDD}-v{x}.tar.gz`
@@ -209,16 +213,26 @@ deploy-increment-YYYYMMDD-vX.tar.gz
 | base-url | `http://10.20.8.8:32389` |
 | client-id | `guolian-jijian` |
 
-### 5.7 Nginx 端口对照
+### 5.7 反向代理与端口对照（InforSuiteLB，不是 Nginx）
 
-| 端口 | 前端 | 静态目录 |
-|------|------|----------|
-| `6009` | PC 管理端 | `/root/AIExamK3/web/admin` |
-| `6002` | PC 用户端 | `/root/AIExamK3/web/user` |
-| `6001` | H5 移动端 | `/root/AIExamK3/web/h5` |
+> **目标机没有 nginx**。三端静态资源与 `/api/` 反代由 **InforSuiteLB** 承载，安装目录 `/data/InforSuiteLB`。
+
+| 端口 | 前端 | 静态目录 | 访问路径（base） |
+|------|------|----------|------------------|
+| `6009` | PC 管理端 | `/root/AIExamK3/web/admin` | `/mgmt/` |
+| `6002` | PC 用户端 | `/root/AIExamK3/web/user` | `/learning-web/` |
+| `6001` | H5 移动端 | `/root/AIExamK3/web/h5` | `/learning-h5/` |
+| `8088` | 后端 API | `app/exam-server.jar` | `/api/v1` |
+
+- 前端构建必须带 base：`npm run build:target`（admin `--base=/mgmt/`、user `--base=/learning-web/`、h5 `--base=/learning-h5/`），路由使用 `createWebHistory(import.meta.env.BASE_URL)`。用默认 `npm run build` 打出的 `/assets/...` 在目标机会白屏。
+- LB 主配置：`/data/InforSuiteLB/conf/InforSuiteLB.conf`；站点配置：`/data/InforSuiteLB/conf/discipline-inspection.conf`（历史文件名 `cra.conf`，已改名）。
+- LB 可执行：`/data/InforSuiteLB/sbin/InforSuiteLB`；测试配置 `-p <LB_HOME> -c <conf> -t`，重载 `-s reload`。
+- 增量包只有在**确实下发 LB 配置变更**时才包含 `lb/conf/`，并在 `UPDATE.md` 写明测试与重载命令。
+- 目标机数据库客户端：`/root/migration/tools/mysql/mysql.sh`，备份优先使用同目录 `bin/mysqldump`。
 
 ### 5.8 配置变更说明
 
 - 目标机配置以 `deploy-files/config/application-polardb.yml` 为准。
 - 每次发布前必须核对该文件与目标机实际环境是否一致；不一致时先更新配置再打包。
 - `source-code/code/exam-server/src/main/resources/application.yml` 和 `source-code/code/config/application-polardb.yml` 必须与 `deploy-files/config/application-polardb.yml` 保持同步。
+- **注意**：`source-code/code/exam-server/src/main/resources/application.yml` 是**目标机配置**（MySQL/PolarDB + 目标 Redis/MinIO），不是本机开发配置。用 `rsync code/ → source-code/code/` 同步源码后，必须把该文件恢复为目标机版本，禁止把本机 PostgreSQL 配置带进 `source-code/`。
