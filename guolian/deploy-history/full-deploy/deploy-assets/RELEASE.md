@@ -82,13 +82,14 @@ bash /root/fully-deploy/AIExamK3/scripts/deploy_release.sh all --dry-run
 
 ```bash
 bash /root/AIExamK3/scripts/start_all.sh status
-curl -sI http://127.0.0.1:6009/mgmt/ | head -1
-curl -sI http://127.0.0.1:6002/learning-web/ | head -1
-curl -sI http://127.0.0.1:6001/learning-h5/ | head -1
-curl -s  http://127.0.0.1:6009/mgmt/ | grep -oE 'src="[^"]*"' | head -1
+curl -sI http://127.0.0.1:6003/mgmt/ | head -1
+curl -sI http://127.0.0.1:6003/learning-web/ | head -1
+curl -sI http://127.0.0.1:6003/learning-h5/ | head -1
+curl -s  http://127.0.0.1:6003/mgmt/ | grep -oE 'src="[^"]*"' | head -1
+curl -sI http://127.0.0.1:6001/guolian-jijian/login | grep -i content-type   # 应为 text/html
 ```
 
-浏览器从**外部**访问一次（走 LB，不是直连端口）：`http://10.64.16.29:6009/mgmt/`、`http://10.64.16.29:6002/learning-web/`、`http://10.64.16.29:6001/learning-h5/`。
+浏览器从**外部**访问一次（走 LB，统一入口 6003，不是直连端口）：`http://10.64.16.29:6003/mgmt/`、`http://10.64.16.29:6003/learning-web/`、`http://10.64.16.29:6003/learning-h5/`；门户单点登录 `http://10.64.16.29:6001/guolian-jijian/login`。
 
 ---
 
@@ -151,12 +152,18 @@ vi /data/InforSuiteLB/conf/InforSuiteLB.conf      # 把 include 改成 disciplin
 
 站点配置内容（`discipline-inspection.conf`）不在本包内；若三端 404/白屏而进程正常，按下列映射现场核对：
 
+三端与 `/api/` 收敛在**统一入口 `6003`**，按路径前缀路由：
+
 | 端 | 上下文 | 静态根 | 监听端口 |
 |----|--------|--------|----------|
-| 管理端 | `/mgmt/` | `/root/AIExamK3/web/admin` | 6009 |
-| PC 用户端 | `/learning-web/` | `/root/AIExamK3/web/user` | 6002 |
-| H5 | `/learning-h5/` | `/root/AIExamK3/web/h5` | 6001 |
-| 后端 API | `/api/` → `127.0.0.1:8088` | `app/exam-server.jar` | 8088 |
+| 管理端 | `/mgmt/` | `/root/AIExamK3/web/admin` | 6003 |
+| PC 用户端 | `/learning-web/` | `/root/AIExamK3/web/user` | 6003 |
+| H5 | `/learning-h5/` | `/root/AIExamK3/web/h5` | 6003 |
+| 后端 API | `/api/` → `127.0.0.1:8088` | `app/exam-server.jar` | 6003 |
+| 门户单点登录 | `/guolian-jijian/login` | `/root/AIExamK3/web/sso/index.html` | 6001（兼容段） |
+| 根路径跳转 | `/` → 302 `/learning-h5/` | — | 6001（兼容段） |
+
+`80` 端口是中创 LB 管控平台（`/console`、`/api` 管控接口），与业务发布无关。`web/sso/index.html` 由 LB 直接 alias，不由三端构建产出，包内不含；`apply` 会保留在运目录已有的 `web/sso/`。
 
 ---
 

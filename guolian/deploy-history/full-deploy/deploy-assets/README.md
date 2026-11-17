@@ -49,7 +49,8 @@
 - Redis 已就绪：`10.64.16.29:6379`（密码见 `config/application-polardb.yml`）
 - OSS 已就绪（当前配置端点 `http://10.10.250.100:8333`，bucket `exam-files`；端点不同时改配置，不改代码）
 - **InforSuiteLB 已安装并配置**（不是 Nginx）：`/data/InforSuiteLB`，主配置 `conf/InforSuiteLB.conf`，站点配置 `conf/discipline-inspection.conf`（历史文件名 `cra.conf`，已改名）
-- 放行端口：8088（后端）、6001（H5）、6002（PC 用户端）、6009（管理端）
+- 放行端口：8088（后端直连/内网）、6003（业务统一入口：三端 + `/api/` 按路径前缀路由）、6001（兼容段：`/` 跳 H5、`/guolian-jijian/login` 单点登录）
+- `80` 是中创 LB 管控平台（`/console`、`/api` 管控接口），与业务发布无关；`6000` 是 Chrome 受限端口，不可用作入口
 
 目标机的 `/data` 下有且只有两个与发布相关（无关）的目录：
 
@@ -84,9 +85,10 @@ bash /root/AIExamK3/scripts/start_all.sh status
 
 # 5. 验证（deploy_release.sh verify 已包含大部分）
 bash /root/AIExamK3/scripts/verify_api.py --base http://127.0.0.1:8088/api/v1
-curl -sI http://127.0.0.1:6009/mgmt/ | head -1
-curl -sI http://127.0.0.1:6002/learning-web/ | head -1
-curl -sI http://127.0.0.1:6001/learning-h5/ | head -1
+curl -sI http://127.0.0.1:6003/mgmt/ | head -1
+curl -sI http://127.0.0.1:6003/learning-web/ | head -1
+curl -sI http://127.0.0.1:6003/learning-h5/ | head -1
+curl -sI http://127.0.0.1:6001/guolian-jijian/login | grep -i content-type   # text/html
 ```
 
 `deploy_release.sh` 的完整能力见文末“发布流程”一节。
@@ -116,12 +118,20 @@ exam:
 
 目标机反向代理为 **InforSuiteLB**，不存在 nginx。三端静态产物必须由 LB 以对应上下文路径暴露，否则会白屏（产物内已固定 base 路径）：
 
-| 端 | 访问路径 | 静态目录 | 监听端口 |
-|----|----------|----------|----------|
-| 管理端 | `/mgmt/` | web/admin | 6009 |
-| PC 用户端 | `/learning-web/` | web/user | 6002 |
-| H5 端 | `/learning-h5/` | web/h5 | 6001 |
-| 后端 API | `/api/` → 127.0.0.1:8088 | app/exam-server.jar | 8088 |
+三端与 `/api/` 全部收敛到**统一入口 `6003`** 单端口，按路径前缀路由（历史上 6009/6002/6001 三端口已废弃）：
+
+| 端 | 访问路径 | 静态目录 / 上游 | 监听端口 |
+|----|----------|-----------------|----------|
+| 管理端 | `/mgmt/` | web/admin | 6003 |
+| PC 用户端 | `/learning-web/` | web/user | 6003 |
+| H5 端 | `/learning-h5/` | web/h5 | 6003 |
+| 后端 API | `/api/` → 127.0.0.1:8088 | app/exam-server.jar | 6003 |
+| 门户单点登录 | `/guolian-jijian/login` | `web/sso/index.html` | 6001（兼容段） |
+| 兼容跳转 | `/` → 302 `/learning-h5/` | — | 6001（兼容段） |
+
+- 每个 location 需 `try_files $uri $uri/ /<base>/index.html` 做 SPA 回退；入口 html 加 `Cache-Control: no-store`，hash 静态资源长缓存。
+- `web/sso/index.html` 由 LB 直接 `alias`，不是三端构建产物，本包内不含；`apply` 会保留在运目录已有的 `web/sso/`（`web` 的 `--delete` 已排除 `sso/`）。
+- `80` 端口是中创 LB 管控平台（`/console`、`/api` 管控接口），与业务无关。
 
 本包**不包含 LB 配置变更**。若站点配置文件仍是历史名称 `cra.conf`，按下列步骤改名（配置内容已切换为本系统，无需改内容）：
 
@@ -174,9 +184,10 @@ bash /root/AIExamK3/scripts/backup.sh /data/backups 7
 
 | 端 | 地址 |
 |----|------|
-| 管理端 | http://10.64.16.29:6009/mgmt/ |
-| PC 用户端 | http://10.64.16.29:6002/learning-web/ |
-| H5 端 | http://10.64.16.29:6001/learning-h5/ |
+| 管理端 | http://10.64.16.29:6003/mgmt/ |
+| PC 用户端 | http://10.64.16.29:6003/learning-web/ |
+| H5 端 | http://10.64.16.29:6003/learning-h5/ |
+| 门户单点登录 | http://10.64.16.29:6001/guolian-jijian/login |
 | 后端 API | http://127.0.0.1:8088/api/v1 |
 | 对象存储 OSS | 当前配置端点 http://10.10.250.100:8333（S3 兼容） |
 

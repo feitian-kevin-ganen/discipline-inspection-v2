@@ -1,12 +1,13 @@
-# 验证 H5(6001) 与 PC 用户端(6002) PDF 页图预览：
+# 验证 H5 与 PC 用户端 PDF 页图预览（统一入口 6003，按路径前缀 /learning-h5、/learning-web）：
 # 1. 资料详情页 DOC 类型渲染 <img blob:> 而非拉取 PDF 流
 # 2. 翻页正常
 # 3. 全程无 .pdf / file-content 请求
 import sys, time
 from playwright.sync_api import sync_playwright
 
-BASE_H5 = 'http://127.0.0.1:6001'
-BASE_PC = 'http://127.0.0.1:6002'
+ENTRY = 'http://127.0.0.1:6003'
+BASE_H5 = ENTRY + '/learning-h5'
+BASE_PC = ENTRY + '/learning-web'
 MATERIAL_ID = 32
 CHROME = '/home/cloud/.cache/ms-playwright/chromium_headless_shell-1234/chrome-headless-shell-linux64/chrome-headless-shell'
 

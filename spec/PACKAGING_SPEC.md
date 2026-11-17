@@ -204,10 +204,14 @@ deploy-increment-YYYYMMDD-vX.tar.gz
 
 | 项目 | 配置值 |
 |------|--------|
-| endpoint / public-endpoint | `http://10.10.250.100:8333`（当前配置值；OSS 实际端点不同时只改这两项） |
+| endpoint / public-endpoint | `http://10.10.250.100:8333` |
+| 协议 / 区域 | AWS S3 SigV4，`REGION=us-east-1` |
 | access-key | `891fef1e206847e1a073d47fcfe8252b` |
 | secret-key | `B7E41087CA32E871D71316A7BA44D4FAF283D3152073AC003C2B7C448A67D05E40D198F686555F236ED9FC8D86741564` |
 | bucket | `exam-files` |
+
+- 端点、AK/SK、region 已由历史迁移脚本（`import_to_oss.sh`，curl + openssl 手工签 SigV4）核实，与 `config/application-polardb.yml` 一致，**打包时不需要改这些值**。
+- 迁移/补传对象时保持对象 key 不变，导入目录形如 `<export_dir>/exam-files/...`；脚本先 `PUT /bucket`（409 视为已存在）再逐个 `PUT` 对象。
 
 ### 5.5 AI 生题
 
@@ -227,15 +231,27 @@ deploy-increment-YYYYMMDD-vX.tar.gz
 
 > **目标机没有 nginx**。三端静态资源与 `/api/` 反代由 **InforSuiteLB** 承载，安装目录 `/data/InforSuiteLB`。
 
-| 端口 | 前端 | 静态目录 | 访问路径（base） |
-|------|------|----------|------------------|
-| `6009` | PC 管理端 | `/root/AIExamK3/web/admin` | `/mgmt/` |
-| `6002` | PC 用户端 | `/root/AIExamK3/web/user` | `/learning-web/` |
-| `6001` | H5 移动端 | `/root/AIExamK3/web/h5` | `/learning-h5/` |
-| `8088` | 后端 API | `app/exam-server.jar` | `/api/v1` |
+**统一入口 `6003` 单端口**：三端前端 + API 反代全部收敛到一个端口，按路径前缀路由（历史上曾是 6009/6002/6001 三个端口，已废弃）。
+
+| 端口 | 用途 | 路径前缀 | 静态目录 / 上游 |
+|------|------|----------|-----------------|
+| `6003` | 业务统一入口 | `/mgmt/` | `web/admin`（管理端，原 6009） |
+| | | `/learning-web/` | `web/user`（PC 用户端，原 6002） |
+| | | `/learning-h5/` | `web/h5`（H5 端，原 6001） |
+| | | `/api/` | `127.0.0.1:8088`（后端） |
+| `6001` | 兼容入口（保留段） | `/` | `302 /learning-h5/` |
+| | | `/guolian-jijian/login` | `alias web/sso/index.html`（门户单点登录，`text/html` + `no-store`） |
+| `8088` | 后端 API | `/api/v1` | `app/exam-server.jar` |
+| `80` | 中创 LB 管控平台 | `/api`、`/console` | **与业务无关**，不参与发布验证 |
+
+- `6000` 是 Chrome 受限端口（`ERR_UNSAFE_PORT`），不可用作入口。
+- 前端构建必须带 base：`npm run build:target`（admin `--base=/mgmt/`、user `--base=/learning-web/`、h5 `--base=/learning-h5/`），路由使用 `createWebHistory(import.meta.env.BASE_URL)`。用默认 `npm run build` 打出的 `/assets/...` 在目标机会白屏。
+- 每个 `location` 下 `try_files $uri $uri/ /<base>/index.html` 做 SPA 回退；入口 `index.html` 加 `Cache-Control: no-store`，hash 静态资源长缓存。
+- **`web/sso/index.html` 是 LB 直接 alias 的独立页面，不由三端构建产出**。它不属于 Vite 构建物，打全量包时若仓库内没有该目录，必须在 `UPDATE.md` 说明，并由 `deploy_release.sh apply` **保留** live 上已有的 `web/sso/`（`web` 的 `--delete` 同步必须排除 `sso/`），否则 SSO 入口 404。
 
 - 前端构建必须带 base：`npm run build:target`（admin `--base=/mgmt/`、user `--base=/learning-web/`、h5 `--base=/learning-h5/`），路由使用 `createWebHistory(import.meta.env.BASE_URL)`。用默认 `npm run build` 打出的 `/assets/...` 在目标机会白屏。
 - LB 主配置：`/data/InforSuiteLB/conf/InforSuiteLB.conf`；站点配置：`/data/InforSuiteLB/conf/discipline-inspection.conf`（历史文件名 `cra.conf`，已改名）。
+- 站点配置里的静态目录必须指向 live：`/root/AIExamK3/web/{admin,user,h5}`，不是 staging。
 - LB 可执行：`/data/InforSuiteLB/sbin/InforSuiteLB`；测试配置 `-p <LB_HOME> -c <conf> -t`，重载 `-s reload`。
 - 增量包只有在**确实下发 LB 配置变更**时才包含 `lb/conf/`，并在 `UPDATE.md` 写明测试与重载命令。
 - 对象存储：目标机为 OSS（S3 兼容，`http://10.10.250.100:8333`，bucket `exam-files`）；`middleware/minio`、`data/minio` 只是本机兜底资产，`start_all.sh` 不会在目标机启动本地 MinIO。
@@ -273,12 +289,12 @@ bash /root/fully-deploy/AIExamK3/scripts/deploy_release.sh all --yes # backup→
 
 脚本约定（修改脚本时必须保持）：
 
-- `apply` 同步 `app`、`docs`、`README.md` 为增量覆盖；`web`、`scripts` 全量同步（`--delete`，用于清掉旧 hash 静态文件与已废弃的 `nginx-*.conf`）。
+- `apply` 同步 `app`、`docs`、`README.md` 为增量覆盖；`web`、`scripts` 全量同步（`--delete`，用于清掉旧 hash 静态文件与已废弃的 `nginx-*.conf`）。**`web` 的 `--delete` 必须排除 `sso/`**，`web/sso/index.html` 是 LB 直接 alias 的门户单点登录页，包内不产出。
 - `apply` **不覆盖** live 的 `config/application-polardb.yml`，不一致时只写 `.new` 并打印 diff。
 - `apply` 默认跳过 `middleware/`、`data/`，只有 `--with-runtime` 才同步。
 - `lb` 将 `conf/cra.conf` 改名为 `conf/discipline-inspection.conf`；若主配置仍 `include` 旧名则报错退出且**不 reload**。
 - `restart` 只停止/启动本项目进程（后端/Redis），不动 LB、数据库与远端 OSS。
-- `verify` 校验三端入口 `200 + text/html`、首页引用带对应 base、`/api/v1/health/db`，通过后才跑 `verify_api.py`。
+- `verify` 按统一入口（默认 `6003`，探测失败回退 `6001`）校验三端 `200 + text/html`、首页引用带对应 base、`/guolian-jijian/login` 返回 `text/html`、`/api/v1/health/db`，通过后才跑 `verify_api.py`。
 - 路径可用 `SRC_DIR`、`APP_DIR`、`LB_HOME` 环境变量覆盖；支持 `--dry-run`。
 
 发布验证必须以脚本输出为准，`check` 未打印“检查通过”不得进入 `apply`。

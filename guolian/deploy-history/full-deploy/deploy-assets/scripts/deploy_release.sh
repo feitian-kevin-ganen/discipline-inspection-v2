@@ -11,8 +11,12 @@
 #   bash /root/fully-deploy/AIExamK3/scripts/deploy_release.sh apply      # 把 staging 同步到 live
 #   bash /root/fully-deploy/AIExamK3/scripts/deploy_release.sh lb         # 校正 LB 站点配置文件名并测试重载
 #   bash /root/fully-deploy/AIExamK3/scripts/deploy_release.sh restart    # 停止并重新启动应用进程
-#   bash /root/fully-deploy/AIExamK3/scripts/deploy_release.sh verify     # 三端与后端验证
+#   bash /root/fully-deploy/AIExamK3/scripts/deploy_release.sh verify     # 统一入口三端 + SSO + 后端验证
 #   bash /root/fully-deploy/AIExamK3/scripts/deploy_release.sh all        # check→backup→apply→lb→restart→verify
+#
+# 入口模型：三端前端 + /api 收敛在统一入口（默认 6003，按路径前缀路由）；
+#   6001 是保留的兼容段（/ → /learning-h5/ 跳转、/guolian-jijian/login 单点登录页）；
+#   80 是中创 LB 管控平台，与业务无关。
 #
 # 选项：
 #   --yes            all/apply 等步骤不再交互确认
@@ -29,9 +33,9 @@ LB_MAIN="$LB_HOME/conf/InforSuiteLB.conf"
 LB_SITE_NEW="$LB_HOME/conf/discipline-inspection.conf"
 LB_SITE_OLD="$LB_HOME/conf/cra.conf"
 
-PORT_ADMIN="${PORT_ADMIN:-6009}"
-PORT_USER="${PORT_USER:-6002}"
-PORT_H5="${PORT_H5:-6001}"
+# 三端统一入口：6003（按路径前缀路由）；探测不通时回退 6001 兼容段
+PORT_ENTRY="${PORT_ENTRY:-6003}"
+PORT_ENTRY_ALT="${PORT_ENTRY_ALT:-6001}"
 PORT_API="${PORT_API:-8088}"
 
 ACTION=""
@@ -103,6 +107,7 @@ check_staging() {
   [ -f "$SRC_DIR/config/application-polardb.yml" ] || { warn "缺少 config/application-polardb.yml"; bad=1; }
   [ -f "$SRC_DIR/scripts/start_all.sh" ] || { warn "缺少 scripts/start_all.sh"; bad=1; }
   [ -f "$SRC_DIR/scripts/deploy_release.sh" ] || warn "staging 里没有 deploy_release.sh（不影响发布，脚本可从本包运行）"
+  [ -f "$SRC_DIR/web/sso/index.html" ] || info "包内无 web/sso/index.html（SSO 页不由三端构建产出，apply 会保留在运版本）"
   return $bad
 }
 
@@ -118,6 +123,11 @@ check_live() {
     fi
   done
   [ -d "$APP_DIR/run" ] || warn "在运目录没有 run/（可能尚未启动过）"
+  if [ -f "$APP_DIR/web/sso/index.html" ]; then
+    info "SSO 入口页存在：web/sso/index.html"
+  else
+    warn "在运目录缺 web/sso/index.html（/guolian-jijian/login 会 404）"
+  fi
   df -h "$APP_DIR" | tail -1 | awk '{printf "[info] 磁盘可用 %s / %s\n", $4, $2}'
 }
 
@@ -188,18 +198,34 @@ cmd_backup() {
 # ---------------------------------------------------------------- 同步
 has_rsync() { command -v rsync >/dev/null 2>&1; }
 
-sync_dir() {  # sync_dir <相对路径> <是否删除多余文件 0|1>
-  local rel="$1" del="${2:-0}"
+sync_dir() {  # sync_dir <相对路径> <是否删除多余文件 0|1> [rsync 排除模式]
+  local rel="$1" del="${2:-0}" excl="${3:-}"
   local s="$SRC_DIR/$rel" d="$APP_DIR/$rel"
   [ -e "$s" ] || return 0
   run mkdir -p "$d"
   if has_rsync; then
     local opts=(-a)
     [ "$del" = "1" ] && opts+=(--delete)
+    [ -n "$excl" ] && opts+=("--exclude=$excl")
     run rsync "${opts[@]}" "$s"/ "$d"/
   else
+    # 无 rsync 时用「移出→清空→回填」模拟 --exclude，避免误删被排除的目录
+    local keep=""
+    if [ -n "$excl" ]; then
+      local name="${excl#/}"; name="${name%/}"
+      if [ -d "$d/$name" ]; then
+        keep=$(mktemp -d)
+        run cp -a "$d/$name" "$keep/$name"
+      fi
+    fi
     [ "$del" = "1" ] && { info "无 rsync，先清空 $rel"; run rm -rf "${d:?}"; run mkdir -p "$d"; }
     run cp -a "$s"/. "$d"/
+    if [ -n "$keep" ]; then
+      run cp -a "$keep/." "$d"/ 2>/dev/null || true
+      rm -rf "$keep"
+      local kn="${excl#/}"; kn="${kn%/}"
+      info "已保留 $rel/$kn"
+    fi
   fi
   info "已同步 $rel"
 }
@@ -219,9 +245,19 @@ cmd_apply() {
   fi
 
   sync_dir app 0
-  sync_dir web 1        # --delete：清掉上一版旧 hash 静态文件
-  sync_dir scripts 1    # --delete：同时清掉已废弃的 nginx-discipline-inspection.conf
+  sync_dir web 1 "/sso/"   # --delete 清旧 hash 静态文件，但保留 LB alias 的 web/sso
+  sync_dir scripts 1        # --delete：同时清掉已废弃的 nginx-discipline-inspection.conf
   sync_dir docs 0
+
+  # SSO 入口页由 LB 直接 alias，不由三端构建产出，包内通常没有
+  if [ -f "$SRC_DIR/web/sso/index.html" ]; then
+    info "已同步包内 web/sso/index.html"
+  elif [ -f "$APP_DIR/web/sso/index.html" ]; then
+    info "包内无 web/sso，已保留在运的 web/sso/index.html"
+  else
+    warn "web/sso/index.html 在包内与在运目录都不存在：/guolian-jijian/login 会 404"
+    warn "  需要从门户侧获取该页面后放到 $APP_DIR/web/sso/index.html"
+  fi
   if [ -f "$SRC_DIR/README.md" ]; then
     run cp -p "$SRC_DIR/README.md" "$APP_DIR/README.md"
     info "已更新 README.md"
@@ -315,15 +351,44 @@ check_base_in_page() {  # check_base_in_page <名称> <url> <期望base>
   esac
 }
 
+# 探测统一入口实际监听的端口：先 6003，不通再试 6001 兼容段
+detect_entry_port() {
+  local p
+  command -v curl >/dev/null 2>&1 || { echo "$PORT_ENTRY"; return 0; }
+  for p in "$PORT_ENTRY" "$PORT_ENTRY_ALT"; do
+    [ -n "$p" ] || continue
+    if [ "$(curl -s -o /dev/null -m 3 -w '%{http_code}' "http://127.0.0.1:$p/mgmt/" 2>/dev/null)" = "200" ]; then
+      echo "$p"; return 0
+    fi
+  done
+  echo "$PORT_ENTRY"
+}
+
 cmd_verify() {
   say "================ 验证 ================"
-  local bad=0
-  probe "管理端"  "http://127.0.0.1:$PORT_ADMIN/mgmt/"          || bad=1
-  probe "用户端"  "http://127.0.0.1:$PORT_USER/learning-web/"  || bad=1
-  probe "H5"      "http://127.0.0.1:$PORT_H5/learning-h5/"     || bad=1
-  check_base_in_page "管理端" "http://127.0.0.1:$PORT_ADMIN/mgmt/" "/mgmt/"
-  check_base_in_page "用户端" "http://127.0.0.1:$PORT_USER/learning-web/" "/learning-web/"
-  check_base_in_page "H5"     "http://127.0.0.1:$PORT_H5/learning-h5/" "/learning-h5/"
+  local bad=0 port
+  port=$(detect_entry_port)
+  if [ "$port" != "$PORT_ENTRY" ]; then
+    warn "统一入口 $PORT_ENTRY 无响应，改用兼容段 $port 验证"
+  fi
+  info "统一入口端口：$port"
+
+  probe "管理端"  "http://127.0.0.1:$port/mgmt/"          || bad=1
+  probe "用户端"  "http://127.0.0.1:$port/learning-web/"  || bad=1
+  probe "H5"      "http://127.0.0.1:$port/learning-h5/"   || bad=1
+  check_base_in_page "管理端" "http://127.0.0.1:$port/mgmt/" "/mgmt/"
+  check_base_in_page "用户端" "http://127.0.0.1:$port/learning-web/" "/learning-web/"
+  check_base_in_page "H5"     "http://127.0.0.1:$port/learning-h5/" "/learning-h5/"
+
+  # SSO 入口：LB alias 到 web/sso/index.html，缺失只告警（不影响三端）
+  if command -v curl >/dev/null 2>&1; then
+    local sso
+    sso=$(curl -sI -m 5 -o /dev/null -w '%{http_code} %{content_type}' "http://127.0.0.1:$port/guolian-jijian/login" 2>/dev/null) || sso="000 -"
+    case "$sso" in
+      200*text/html*) info "SSO 入口 OK  /guolian-jijian/login → $sso" ;;
+      *)              warn "SSO 入口异常  /guolian-jijian/login → $sso（检查 web/sso/index.html）" ;;
+    esac
+  fi
 
   local api_ok=0
   if command -v curl >/dev/null 2>&1; then
@@ -373,6 +438,11 @@ usage() {
   SRC_DIR=/root/fully-deploy/AIExamK3
   APP_DIR=/root/AIExamK3
   LB_HOME=/data/InforSuiteLB
+
+端口（可用环境变量覆盖）：
+  PORT_ENTRY=6003        三端统一入口（/mgmt/ /learning-web/ /learning-h5/ /api/）
+  PORT_ENTRY_ALT=6001    兼容段，6003 不通时用于验证
+  PORT_API=8088          后端（默认直连，不经 LB）
 EOF
 }
 
