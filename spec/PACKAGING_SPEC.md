@@ -43,7 +43,8 @@ AIExamK3/
 |-----------|------|------|
 | `source-code/code/` | `source-code` | 项目源码工程，包括 Maven 后端、Vue 前端、脚本源码等。 |
 | `deploy-assets/README.md` | `deploy-assets` | 发布包内 `README.md` 的权威副本，打包时复制进压缩包根目录。 |
-| `deploy-assets/scripts/` | `deploy-assets` | 发布包内 `scripts/` 的权威副本（`start_all.sh`、`stop_all.sh`、`backup.sh`、`verify_*.py` 等）。 |
+| `deploy-assets/scripts/` | `deploy-assets` | 发布包内 `scripts/` 的权威副本（`start_all.sh`、`stop_all.sh`、`backup.sh`、`deploy_release.sh`、`verify_*.py` 等）。 |
+| `deploy-assets/RELEASE.md` | `deploy-assets` | 发布包内 `RELEASE.md` 的权威副本（staging → live 发布说明），打包时复制进压缩包根目录。 |
 | `deploy-files/full-deploy-*.tar.gz` | `deploy-files` | 目标机全量发布压缩包，解压后顶层为 `AIExamK3/`。 |
 | `AIExamK3/app/` | 压缩包内 | 后端可执行 jar（`exam-server.jar`）。 |
 | `AIExamK3/config/` | 压缩包内 | 目标环境外置配置（如 `application-polardb.yml`）。 |
@@ -52,9 +53,10 @@ AIExamK3/
 | `AIExamK3/logs/` | 压缩包内 | 预留运行日志目录。 |
 | `AIExamK3/middleware/` | 压缩包内 | JDK、MinIO、ffmpeg、mysql-tools 等运行依赖。 |
 | `AIExamK3/run/` | 压缩包内 | 预留 PID 目录。 |
-| `AIExamK3/scripts/` | 压缩包内 | 启动、停止、备份、迁移、校验等脚本。 |
+| `AIExamK3/scripts/` | 压缩包内 | 启动、停止、备份、发布、迁移、校验等脚本。 |
 | `AIExamK3/web/` | 压缩包内 | 三端前端构建产物（`admin/`、`user/`、`h5/`）。 |
 | `AIExamK3/README.md` | 压缩包内 | 目标机部署说明。 |
+| `AIExamK3/RELEASE.md` | 压缩包内 | 发布说明（staging → live 流程、回滚、LB 处置）。 |
 
 ### 1.4 打包要求
 
@@ -65,8 +67,9 @@ AIExamK3/
   - 命名：`full-deploy-{yyyyMMDD}-v{x}.tar.gz`
   - 版本号规则：每天从 `v1` 开始，同一天每打一次增加 `0.1`。
   - 示例：`full-deploy-20261116-v1.tar.gz`、`full-deploy-20261116-v1.1.tar.gz`
-  - 压缩包顶层目录为 `AIExamK3/`，解压到 `/root` 后即为 `/root/AIExamK3`。
+  - 压缩包顶层目录为 `AIExamK3/`，解压到 `/root/fully-deploy` 后即为 staging `/root/fully-deploy/AIExamK3`（见 5.9）。
 - `deploy-files/` 目录下**只保留压缩包**，不再保留未压缩的 `app/`、`config/` 等原始文件夹。
+- 包内必须带 `scripts/deploy_release.sh` 与 `RELEASE.md`，发布以脚本为准，不靠手工命令清单。
 
 ### 1.5 源码同步要求
 
@@ -130,6 +133,9 @@ deploy-increment-YYYYMMDD-vX.tar.gz
 
 - 不应重复包含未变更的 `middleware/`、`data/` 等大体积目录。
 - 若数据库有变更，必须附带 `UPDATE.md` 和 `db/` 补丁脚本。
+- 包顶层统一为 `./`（解压到 staging 目录即对应各自相对路径），并包含 `UPDATE.md`；涉及发布流程变化时同时包含 `RELEASE.md`。
+- 同一天打了多版时，后一版允许做成**累积增量**（覆盖前一版内容），但必须在 `UPDATE.md` 首行写明“累积基准”是哪个全量包版本。
+- 覆盖到 staging（`/root/fully-deploy/AIExamK3`）后再执行 `scripts/deploy_release.sh`，见 5.9。
 
 ---
 
@@ -170,7 +176,9 @@ deploy-increment-YYYYMMDD-vX.tar.gz
 | 项目 | 配置值 |
 |------|--------|
 | 目标机器 IP | `10.64.16.29` |
-| 部署根目录 | `/root/AIExamK3` |
+| staging（全量包解压目录） | `/root/fully-deploy/AIExamK3` |
+| live（在运项目目录） | `/root/AIExamK3` |
+| 负载均衡根目录 | `/data/InforSuiteLB`（同级的 `/data/rds-install` 是数据库安装目录，**不得改动**） |
 | 后端端口 | `8088` |
 
 ### 5.2 数据库
@@ -236,3 +244,38 @@ deploy-increment-YYYYMMDD-vX.tar.gz
 - 每次发布前必须核对该文件与目标机实际环境是否一致；不一致时先更新配置再打包。
 - `source-code/code/exam-server/src/main/resources/application.yml` 和 `source-code/code/config/application-polardb.yml` 必须与 `deploy-files/config/application-polardb.yml` 保持同步。
 - **注意**：`source-code/code/exam-server/src/main/resources/application.yml` 是**目标机配置**（MySQL/PolarDB + 目标 Redis/MinIO），不是本机开发配置。用 `rsync code/ → source-code/code/` 同步源码后，必须把该文件恢复为目标机版本，禁止把本机 PostgreSQL 配置带进 `source-code/`。
+
+### 5.9 发布流程（staging → live）
+
+目标机采用**双目录模型**：全量包与增量包一律先落到 staging，再由发布脚本同步到 live。
+
+| 路径 | 角色 | 谁能写 |
+|------|------|--------|
+| `/root/fully-deploy/AIExamK3` | staging：全量包解压内容，增量包覆盖到这里 | 人工解压/覆盖 |
+| `/root/AIExamK3` | live：三端与后端实际运行 | 仅 `deploy_release.sh apply` |
+| `/data/InforSuiteLB` | 负载均衡 | 仅 `deploy_release.sh lb`（改站点配置名 + reload） |
+| `/data/rds-install` | 数据库安装目录 | **不改动** |
+
+标准命令（包内 `scripts/deploy_release.sh`，目标机 root 执行）：
+
+```bash
+# 全量包：先解压到 staging
+tar -xzf full-deploy-{yyyyMMdd}-v{x}.tar.gz -C /root/fully-deploy
+# 增量包：覆盖到 staging
+tar -xzf deploy-increment-{yyyyMMdd}-v{x}.tar.gz -C /root/fully-deploy/AIExamK3
+
+bash /root/fully-deploy/AIExamK3/scripts/deploy_release.sh check     # 只读检查
+bash /root/fully-deploy/AIExamK3/scripts/deploy_release.sh all --yes # backup→apply→lb→restart→verify
+```
+
+脚本约定（修改脚本时必须保持）：
+
+- `apply` 同步 `app`、`docs`、`README.md` 为增量覆盖；`web`、`scripts` 全量同步（`--delete`，用于清掉旧 hash 静态文件与已废弃的 `nginx-*.conf`）。
+- `apply` **不覆盖** live 的 `config/application-polardb.yml`，不一致时只写 `.new` 并打印 diff。
+- `apply` 默认跳过 `middleware/`、`data/`，只有 `--with-runtime` 才同步。
+- `lb` 将 `conf/cra.conf` 改名为 `conf/discipline-inspection.conf`；若主配置仍 `include` 旧名则报错退出且**不 reload**。
+- `restart` 只停止/启动本项目进程（后端/Redis/MinIO），不动 LB 与数据库。
+- `verify` 校验三端入口 `200 + text/html`、首页引用带对应 base、`/api/v1/health/db`，通过后才跑 `verify_api.py`。
+- 路径可用 `SRC_DIR`、`APP_DIR`、`LB_HOME` 环境变量覆盖；支持 `--dry-run`。
+
+发布验证必须以脚本输出为准，`check` 未打印“检查通过”不得进入 `apply`。

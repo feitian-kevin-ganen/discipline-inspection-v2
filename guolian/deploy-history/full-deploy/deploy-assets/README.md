@@ -30,9 +30,10 @@
 │   └── mysql-tools/                 # 随包 mysqldump/mysql（目标机无客户端时兜底）
 ├── data/minio/exam-files/           # MinIO 对象数据（本地副本/兜底，主存储为远端 10.10.250.100）
 ├── scripts/
-│   ├── start_all.sh                 # 一键启动（Redis/MinIO/后端/LB）
+│   ├── start_all.sh                 # 一键启动（Redis/MinIO/后端）
 │   ├── stop_all.sh                  # 一键停止（保留 LB 与数据库）
 │   ├── backup.sh                    # 一键备份（数据库/应用包/MinIO 数据/配置）
+│   ├── deploy_release.sh            # staging → live 发布脚本（check/backup/apply/lb/restart/verify/all）
 │   ├── pg_to_mysql.py               # PostgreSQL → MySQL 数据迁移脚本
 │   ├── verify_api.py                # API 端到端校验脚本
 │   └── verify_pdf_pages.py          # PDF 页数校验脚本
@@ -50,26 +51,49 @@
 - **InforSuiteLB 已安装并配置**（不是 Nginx）：`/data/InforSuiteLB`，主配置 `conf/InforSuiteLB.conf`，站点配置 `conf/discipline-inspection.conf`（历史文件名 `cra.conf`，已改名）
 - 放行端口：8088（后端）、6001（H5）、6002（PC 用户端）、6009（管理端）
 
+目标机的 `/data` 下有且只有两个与发布相关（无关）的目录：
+
+| 路径 | 角色 | 发布时是否改动 |
+|------|------|----------------|
+| `/data/InforSuiteLB` | 负载均衡安装目录（`sbin/InforSuiteLB`、`conf/InforSuiteLB.conf`、`conf/discipline-inspection.conf`） | 只在站点配置改名后测试 + reload |
+| `/data/rds-install` | 数据库安装目录 | **不动** |
+
 ## 快速启动
 
+全量包**先解压到 staging，再发布到在运目录**，两个路径不要混用：
+
+| 路径 | 角色 |
+|------|------|
+| `/root/fully-deploy/AIExamK3` | staging：全量包解压出来的待发布内容（增量包也覆盖到这里） |
+| `/root/AIExamK3` | live：三端与后端实际运行的目录 |
+
 ```bash
-# 1. 解压到 /root（包内顶层目录为 AIExamK3/，解压后即 /root/AIExamK3）
-sudo tar -xzf full-deploy-{yyyyMMdd}-v{x}.tar.gz -C /root
-sudo chmod 755 /root /root/AIExamK3
-sudo chmod -R a+rX /root/AIExamK3/web
+# 1. 解压到 staging（包内顶层目录为 AIExamK3/）
+sudo mkdir -p /root/fully-deploy
+sudo tar -xzf full-deploy-{yyyyMMdd}-v{x}.tar.gz -C /root/fully-deploy
+sudo chmod -R a+rX /root/fully-deploy/AIExamK3/web
 
-# 2. 启动后端（Redis/MinIO 按其配置地址探测：远端已可用则跳过本机启动）
-bash /root/AIExamK3/scripts/start_all.sh
+# 2. 发布前检查（不改动任何文件）
+bash /root/fully-deploy/AIExamK3/scripts/deploy_release.sh check
 
-# 3. 查看状态
+# 3. 一键发布：backup → apply → lb → restart → verify
+bash /root/fully-deploy/AIExamK3/scripts/deploy_release.sh all --yes
+
+# 4. 查看状态
 bash /root/AIExamK3/scripts/start_all.sh status
 
-# 4. 验证
+# 5. 验证（deploy_release.sh verify 已包含大部分）
 bash /root/AIExamK3/scripts/verify_api.py --base http://127.0.0.1:8088/api/v1
 curl -sI http://127.0.0.1:6009/mgmt/ | head -1
 curl -sI http://127.0.0.1:6002/learning-web/ | head -1
 curl -sI http://127.0.0.1:6001/learning-h5/ | head -1
 ```
+
+`deploy_release.sh` 的完整能力见文末“发布流程”一节。
+
+> 首次安装（live 目录还不存在或缺少中间件）时，先手动把 staging 的内容整体拷到 `/root/AIExamK3`：
+> `mkdir -p /root/AIExamK3 && cp -a /root/fully-deploy/AIExamK3/. /root/AIExamK3/`
+> 之后再走 `deploy_release.sh`；需要连 `middleware/`、`data/` 一起同步时加 `--with-runtime`。
 
 ## InforSuiteLB 说明（反向代理，非 Nginx）
 
@@ -140,3 +164,38 @@ bash /root/AIExamK3/scripts/backup.sh /data/backups 7
 | MinIO 控制台 | http://10.10.250.100:8333（远端对象存储） |
 
 默认账号参见源码 `code/README.md`。
+
+## 发布流程（staging → live）
+
+`scripts/deploy_release.sh` 负责把 staging 的内容发布到 live，并处理 LB 站点配置改名、进程重启与验证。
+
+```bash
+S=/root/fully-deploy/AIExamK3/scripts/deploy_release.sh
+
+bash $S check      # 发布前检查：jar/三端 base/配置差异/进程/磁盘/LB 配置，不改动文件
+bash $S backup     # 备份：exam_db.sql.gz + app-package.tar.gz + minio-data.tar.gz + 配置
+bash $S apply      # 同步 app/docs/README 增量，web/scripts 全量（--delete）
+bash $S lb         # cra.conf → discipline-inspection.conf，-t 通过后 -s reload
+bash $S restart    # stop_all.sh + start_all.sh（只动本项目进程）
+bash $S verify     # 三端 200+text/html、首页 base、/api/v1/health/db、verify_api.py
+bash $S all --yes  # 以上全部，按序执行
+```
+
+选项：
+
+- `--yes` 不交互确认；`--dry-run` 只打印动作不落盘；`--with-runtime` 额外同步 `middleware/`、`data/`
+- 路径可用环境变量覆盖：`SRC_DIR`（默认 `/root/fully-deploy/AIExamK3`）、`APP_DIR`（默认 `/root/AIExamK3`）、`LB_HOME`（默认 `/data/InforSuiteLB`）
+
+两条与现场有关的行为：
+
+- **live 配置不被覆盖**：staging 与 live 的 `config/application-polardb.yml` 不一致时只写 `.new` 并打印 diff，确认后手工 `cp` 并重启。
+- **废弃 nginx 配置自动清理**：`scripts/` 走 `--delete`，`nginx-discipline-inspection.conf` 会被删掉。
+
+LB 改名后若主配置仍 `include conf/cra.conf;`，`lb` 会报错退出**不重载**；先改 `InforSuiteLB.conf` 的 include，再跑一次 `lb`。
+
+增量包的使用方式相同：先覆盖到 staging，再跑 `deploy_release.sh`。
+
+```bash
+tar -xzf deploy-increment-{yyyyMMdd}-v{x}.tar.gz -C /root/fully-deploy/AIExamK3
+bash /root/fully-deploy/AIExamK3/scripts/deploy_release.sh all --yes
+```
