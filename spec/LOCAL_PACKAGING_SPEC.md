@@ -37,7 +37,8 @@
 
 | 配置项 | 规约值 | 说明 |
 |--------|--------|------|
-| 后端端口 | `8088` | 不可随意变更，与 Nginx `/api/` 代理对应 |
+| 后端端口 | `8088` | 不可随意变更，网关 `/api/` 反代指向它 |
+| 统一入口端口 | `6003` | 三端静态 + `/api` 反代，与目标机 6003 单入口口径一致 |
 | 数据库驱动 | `org.postgresql.Driver` | 本机使用 PostgreSQL |
 | 数据库 URL | `jdbc:postgresql://127.0.0.1:5434/exam_db?stringtype=unspecified` | 本地 PaaS PostgreSQL |
 | 数据库账号 | `postgres / postgres` | 与本地 PostgreSQL 实例一致 |
@@ -70,18 +71,21 @@
 
 ```text
 local-deploy/
-├── source-code/          # 本机运行所需的源码
+├── source-code/          # 本机运行所需的源码（不含 node_modules/target/dist，不含 ffmpeg 二进制）
 │   └── code/
-└── deploy-files/         # 本机要发布的运行内容
-    ├── app/
-    ├── config/
-    ├── docs/
-    ├── middleware/
-    │   └── ffmpeg
-    ├── README.md
-    ├── scripts/
-    └── web/
+├── deploy-files/         # 本机要发布的运行内容（归档来源，保留目录形态便于增量对比）
+│   ├── app/
+│   ├── config/
+│   ├── docs/
+│   ├── middleware/
+│   │   └── ffmpeg
+│   ├── README.md
+│   ├── scripts/
+│   └── web/
+└── local-deploy-{yyyyMMdd}-v{x}.tar.gz   # 归档包，内容为 deploy-files，顶层目录 discipline-inspection-local
 ```
+
+归档包只含发布内容（`deploy-files`），不含 `source-code`；`source-code` 以目录形态保存在仓库中。
 
 ### 2.1 与目标机全量包的区别
 
@@ -111,15 +115,18 @@ npm run build --prefix exam-h5-web
 ### 3.2 组织本地包
 
 1. 清空或创建 `guolian/deploy-history/local-deploy/`。
-2. `source-code/`：同步 `code/` 源码（剔除 `node_modules`、`target`、`dist`、`logs`、`run`、`.venv`）。
+2. `source-code/`：同步 `code/` 源码（剔除 `node_modules`、`target`、`dist`、`logs`、`run`、`.venv`、`tools/ffmpeg`）。
 3. `deploy-files/`：
-   - `app/exam-server.jar`
-   - `config/application.yml`（本机 PostgreSQL 配置）
-   - `web/admin/`、`web/user/`、`web/h5/`
+   - `app/exam-server.jar`（`code/exam-server/target/exam-server.jar`）
+   - `config/application.yml`（本机 PostgreSQL 配置，`exam.ffmpeg-path` 指向发布后路径 `middleware/ffmpeg`）
+   - `web/admin/`、`web/user/`、`web/h5/`（三端 dist，构建时 base 分别为 `/mgmt/`、`/learning-web/`、`/learning-h5/`）
    - `middleware/ffmpeg`
-   - `scripts/`（本地启停脚本，不含目标机专用脚本）
+   - `scripts/`：`start_all.sh`、`stop_all.sh`、`local_gateway.py`、`verify_api.py`、`verify_pdf_pages.py`
+     （本机专用，**不含**目标机的 `deploy_release.sh`、`backup.sh`、`pg_to_mysql.py`）
    - `docs/`（项目资料，可选）
+   - `logs/`、`run/`（空目录占位）
    - `README.md`
+4. 归档：`tar -czf local-deploy-{yyyyMMdd}-v{x}.tar.gz --transform 's,^deploy-files,discipline-inspection-local,' deploy-files`
 
 ### 3.3 命名
 
@@ -138,27 +145,53 @@ local-deploy-{yyyyMMDD}-v{x}.tar.gz
 ### 4.1 解压
 
 ```bash
-sudo mkdir -p /home/cloud/AIExamK3
-sudo tar -xzf local-deploy-YYYYMMDD-vX.tar.gz -C /home/cloud/AIExamK3 --strip-components=1
-sudo chmod -R a+rX /home/cloud/AIExamK3/web
+mkdir -p /home/cloud/AIExamK3
+tar -xzf local-deploy-YYYYMMDD-vX.tar.gz -C /home/cloud/AIExamK3 --strip-components=1
+chmod +x /home/cloud/AIExamK3/scripts/*.sh /home/cloud/AIExamK3/scripts/*.py /home/cloud/AIExamK3/middleware/ffmpeg
 ```
 
-### 4.2 启动
+归档包顶层目录为 `discipline-inspection-local/`，`--strip-components=1` 后 `app/`、`config/` 等直接落在
+`/home/cloud/AIExamK3` 下。
+
+### 4.2 启动 / 停止
 
 ```bash
 cd /home/cloud/AIExamK3
-bash scripts/start_all.sh
+bash scripts/start_all.sh          # 启动后端 + 网关，并打印入口
+bash scripts/start_all.sh status   # 只看状态
+bash scripts/stop_all.sh           # 只停本目录 run/*.pid 记录的进程
 ```
 
-`start_all.sh` 至少完成：
+`start_all.sh` 完成：
 
-1. 启动后端 jar（端口 8088）。
-2. 以静态方式启动三端前端（端口 6009/6002/6001），可用 `python3 -m http.server` 或 Node 静态服务。
+1. 依赖探测：`127.0.0.1:5434`、`6379`、`9000`，缺失只告警不阻断。
+2. 启动后端 jar（端口 8088）：
+   `java -jar app/exam-server.jar --spring.config.additional-location=file:$APP_DIR/config/`
+3. 等待 `/v3/api-docs` 可用（最长 120 秒）。
+4. 启动统一入口网关（端口 6003）：`python3 scripts/local_gateway.py --port 6003 --root $APP_DIR`。
+
+`local_gateway.py` 等价实现目标机 InforSuiteLB 的路由模型（本机无 InforSuiteLB）：
+
+| 前缀 | 去向 |
+|------|------|
+| `/mgmt/` | `web/admin`（SPA 回退 index.html） |
+| `/learning-web/` | `web/user` |
+| `/learning-h5/` | `web/h5` |
+| `/api/` | 反代 `127.0.0.1:8088`，响应加 `Cache-Control: no-store` |
+| `/` | 302 到 `/learning-h5/` |
+| `/guolian-jijian/login` | `web/sso/index.html`（不存在时返回 404 说明页） |
 
 ### 4.3 验证
 
 ```bash
-bash scripts/verify_api.py --base http://127.0.0.1:8088/api/v1
+# 接口全流程（64 项，经网关）
+python3 scripts/verify_api.py --base http://127.0.0.1:6003/api/v1
+
+# 三端入口
+for p in /mgmt/ /learning-web/ /learning-h5/; do curl -s -o /dev/null -w "$p %{http_code}\n" http://127.0.0.1:6003$p; done
+
+# 可选：PDF 页图预览（需 playwright；默认走 6003 的两个用户端前缀）
+python3 scripts/verify_pdf_pages.py
 ```
 
 ---
@@ -168,4 +201,11 @@ bash scripts/verify_api.py --base http://127.0.0.1:8088/api/v1
 - 本机包**不携带数据库、Redis、MinIO、JDK**，依赖本地 PaaS 环境。
 - 发布前确认 PostgreSQL `exam_db`、Redis `6379`、MinIO `9000` 均已可用。
 - 若本机 IP 变化，须同步修改 `config/application.yml` 中的 `minio.public-endpoint`。
-- 本机包与目标机包**严禁混用配置**，打包前须按本规约核对。
+- 本机包与目标机包**严禁混用配置**：目标机是 PolarDB-X/MySQL + OSS + InforSuiteLB，本机是
+  PostgreSQL + 本地 MinIO + `local_gateway.py`。
+- 端口模型：后端 `8088` 只被网关反代，对外只需开放 `6003`；本机不要再沿用历史上
+  `6009/6002/6001` 分端口静态服务的做法，三端 dist 已按 `/mgmt/`、`/learning-web/`、
+  `/learning-h5/` 前缀构建，分端口静态服务会导致资源 404。
+- 停服务只按 `run/*.pid` 停止，不得 `pkill java` 或按端口杀进程（会波及其他项目）。
+- 每个版本的发布记录（`local-deploy-{yyyyMMdd}-v{x}.tar.gz`、md5、验证结果）需与
+  `source-code` 一并在仓库中留存；打包后同步更新本规约中的端口/配置口径（如有变化）。

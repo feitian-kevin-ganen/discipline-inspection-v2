@@ -1,0 +1,16 @@
+{
+  "description": "纪检监察人员在线考试系统 - 原生微信小程序考生端",
+  "appid": "touristappid",
+  "compileType": "miniprogram",
+  "libVersion": "latest",
+  "projectname": "exam-miniprogram",
+  "setting": {
+    "urlCheck": false,
+    "es6": true,
+    "postcss": true,
+    "minified": true,
+    "enhance": true,
+    "ignoreUploadUnusedFiles": true
+  },
+  "condition": {}
+}

@@ -1,0 +1,66 @@
+.meta-bar {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  padding: 24rpx 32rpx;
+  background: #fff;
+}
+
+.detail-progress {
+  margin: 0 32rpx 24rpx;
+}
+
+.rich-content {
+  font-size: 28rpx;
+  line-height: 1.8;
+  word-break: break-word;
+}
+
+.doc-wrap {
+  text-align: center;
+  padding: 64rpx 32rpx;
+}
+
+.doc-icon {
+  font-size: 96rpx;
+}
+
+.doc-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  margin: 16rpx 0 8rpx;
+}
+
+.doc-btn {
+  margin: 32rpx 64rpx 16rpx;
+}
+
+.doc-tip {
+  margin-top: 8rpx;
+}
+
+.video-wrap {
+  background: #000;
+}
+
+.video-player {
+  width: 100%;
+  display: block;
+}
+
+.video-tip {
+  background: #fff;
+  padding: 16rpx 32rpx;
+}
+
+.summary-head {
+  font-size: 28rpx;
+  font-weight: 600;
+  margin-bottom: 12rpx;
+}
+
+.summary-text {
+  font-size: 26rpx;
+  color: #646566;
+  line-height: 1.8;
+}
