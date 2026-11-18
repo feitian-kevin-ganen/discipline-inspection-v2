@@ -12,7 +12,7 @@
     /api/          -> 127.0.0.1:8088（exam-server）
     /              -> 302 /portal/
 
-用法：python3 scripts/local_gateway.py [--port 6003] [--root /home/cloud/AIExamK3]
+用法：python3 scripts/local_gateway.py [--port 6003] [--root /home/cloud/projects/AIExamK3/deploy/local-deploy]
 """
 import argparse
 import http.client

@@ -19,17 +19,20 @@ venv*/
 nohup.out
 
 # Deploy history artifacts (generated packages and runtime data)
-guolian/deploy-history/**/*.tar.gz
-guolian/deploy-history/incremental-deploy/
+deploy/guolian-deploy/**/*.tar.gz
+deploy/guolian-deploy/incremental-deploy/
 
 # Deploy-files binary/runtime directories (config/scripts/README are tracked)
-guolian/deploy-history/full-deploy/deploy-files/app/
-guolian/deploy-history/full-deploy/deploy-files/data/
-guolian/deploy-history/full-deploy/deploy-files/docs/
-guolian/deploy-history/full-deploy/deploy-files/logs/
-guolian/deploy-history/full-deploy/deploy-files/middleware/
-guolian/deploy-history/full-deploy/deploy-files/run/
-guolian/deploy-history/full-deploy/deploy-files/web/
+deploy/guolian-deploy/full-deploy/deploy-files/app/
+deploy/guolian-deploy/full-deploy/deploy-files/data/
+deploy/guolian-deploy/full-deploy/deploy-files/docs/
+deploy/guolian-deploy/full-deploy/deploy-files/logs/
+deploy/guolian-deploy/full-deploy/deploy-files/middleware/
+deploy/guolian-deploy/full-deploy/deploy-files/run/
+deploy/guolian-deploy/full-deploy/deploy-files/web/
+
+# Local runtime deploy dir (jar, built web, logs, local config with secrets)
+deploy/local-deploy/
 
 **/__pycache__/
 

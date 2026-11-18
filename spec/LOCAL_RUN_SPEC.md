@@ -13,7 +13,7 @@
 |------|--------|
 | 操作系统 | Ubuntu 24.04.3 LTS (noble) |
 | 本机 IP | `10.110.40.160` |
-| 部署运行目录 | `/home/cloud/AIExamK3` |
+| 部署运行目录 | `/home/cloud/projects/AIExamK3/deploy/local-deploy` |
 
 ### 1.2 中间件与工具
 
@@ -28,11 +28,11 @@
 | MySQL | 8.0.46 | `127.0.0.1:3306`，库 `exam_db`，PaaS 目录 `PaaS/MySQL8` |
 | Redis | 7.0.15 | `127.0.0.1:6379`，无密码 |
 | MinIO | RELEASE.2025-07-23 | `http://127.0.0.1:9000`，bucket `exam-files` |
-| ffmpeg | `/home/cloud/AIExamK3/middleware/ffmpeg` | 视频封面抽帧 |
+| ffmpeg | `/home/cloud/projects/AIExamK3/deploy/local-deploy/middleware/ffmpeg` | 视频封面抽帧 |
 
 ### 1.3 应用配置
 
-配置来源：`code/exam-server/src/main/resources/application.yml`；运行副本 `/home/cloud/AIExamK3/config/application.yml` 必须与下表一致。
+配置来源：`code/exam-server/src/main/resources/application.yml`；运行副本 `/home/cloud/projects/AIExamK3/deploy/local-deploy/config/application.yml` 必须与下表一致。
 
 | 配置项 | 规约值 | 说明 |
 |--------|--------|------|
@@ -49,13 +49,13 @@
 | MinIO access-key | `minioadmin` | 本地 MinIO 默认账号 |
 | MinIO secret-key | `minioadmin` | 本地 MinIO 默认密码 |
 | MinIO bucket | `exam-files` | 本地 MinIO bucket 名 |
-| ffmpeg 路径 | `/home/cloud/AIExamK3/middleware/ffmpeg` | 运行路径 |
+| ffmpeg 路径 | `/home/cloud/projects/AIExamK3/deploy/local-deploy/middleware/ffmpeg` | 运行路径 |
 | JWT secret | `9f4c2a7b8d1e3f5061728394a5b6c7d8e9f0a1b2c3d4e5f60718293a4b5c6d7e8` | 与目标机共用同一签名密钥 |
 | JWT access-expire | `43200` 秒 | 与目标机一致 |
 | JWT refresh-expire | `604800` 秒 | 与目标机一致 |
 | AI 生题 base-url | `https://glai2.wuxidata.com.cn:4001` | 国联集团模型平台（OpenAI 兼容协议） |
 | AI 生题 model | `guolian-llm-max` | 国联 DeepSeek-V4-Flash-1017；网关只接受该模型名，传 `DeepSeek-V4-Flash-1017` 返回 400 |
-| AI 生题 api-key | 运行副本注入，不入库 | 只写在 `/home/cloud/AIExamK3/config/application.yml`；源码默认空串，禁止提交明文 key |
+| AI 生题 api-key | 运行副本注入，不入库 | 只写在 `/home/cloud/projects/AIExamK3/deploy/local-deploy/config/application.yml`；源码默认空串，禁止提交明文 key |
 | AI 生题 max-tokens | `8192` | 思考型模型，输出含 reasoning，注意长题目可能被截断 |
 
 > **强制检查项**：启动前执行 `hostname -I` 核对本机 IP。若 IP 不是 `10.110.40.160`，必须同步修改 `application.yml` 中的 `minio.public-endpoint`，否则外部访问 MinIO 预签名 URL 会失败。
@@ -65,7 +65,7 @@
 本机不生成打包归档，直接运行部署目录：
 
 ```text
-/home/cloud/AIExamK3/
+/home/cloud/projects/AIExamK3/deploy/local-deploy/
 ├── app/exam-server.jar
 ├── config/application.yml
 ├── web/{admin,user,h5,portal,sso}/
@@ -75,13 +75,13 @@
 └── run/
 ```
 
-- 启停与校验脚本以部署目录 `/home/cloud/AIExamK3/scripts/` 为准。
+- 启停与校验脚本以部署目录 `/home/cloud/projects/AIExamK3/deploy/local-deploy/scripts/` 为准。
 - 三端 dist 构建时 base 分别为 `/mgmt/`、`/learning-web/`、`/learning-h5/`。
 
 ## 3. 启动 / 停止
 
 ```bash
-cd /home/cloud/AIExamK3
+cd /home/cloud/projects/AIExamK3/deploy/local-deploy
 bash scripts/start_all.sh          # 启动后端 + 网关，并打印入口
 bash scripts/start_all.sh status   # 只看状态
 bash scripts/stop_all.sh           # 只停本目录 run/*.pid 记录的进程
@@ -125,7 +125,7 @@ python3 scripts/verify_pdf_pages.py
 
 ## 5. 注意事项
 
-- 本机**不生成 `local-deploy` 归档**，启动所需文件直接位于 `/home/cloud/AIExamK3`。
+- 本机**不生成 `local-deploy` 归档**，启动所需文件直接位于 `/home/cloud/projects/AIExamK3/deploy/local-deploy`。
 - 依赖本地 PaaS：MySQL `3306`（库 `exam_db`）、Redis `6379`、MinIO `9000` 必须可用；PostgreSQL `5434` 仅作迁移回滚源。
 - 若本机 IP 变化，须同步修改 `config/application.yml` 中的 `minio.public-endpoint`。
 - 本机配置与目标机配置**严禁混用**：目标机是 PolarDB MySQL + OSS + InforSuiteLB，本机是

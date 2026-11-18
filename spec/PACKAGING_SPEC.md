@@ -2,12 +2,34 @@
 
 > 适用范围：`/home/cloud/projects/AIExamK3`（纪检监察人员在线考试培训系统）
 
+## 0. 目录总览
+
+```text
+/home/cloud/projects/AIExamK3/
+├── code/                       # 源码工程（唯一源）
+├── spec/                       # 开发 / 打包 / 本机运行规约
+├── deploy/
+│   ├── local-deploy/           # 本机运行目录：jar、构建后前端、本机 config、logs、run（不入库）
+│   └── guolian-deploy/         # 目标机发布历史
+│       ├── full-deploy/        # 全量包：source-code/ + deploy-files/
+│       └── incremental-deploy/ # 增量包
+└── guolian/
+    ├── test/                   # 国联测试环境
+    │   └── project-files/      # 目标机配置相关的源码与配置文件
+    ├── prd/                    # 国联生产环境（生产配置申请到之前保持为空）
+    └── README.md
+```
+
+- `guolian/test/project-files/` 只放**目标机配置相关的源码与配置文件**，不放编译产物、发布包。
+- `guolian/test/` 代表国联测试环境；`guolian/prd/` 代表生产环境，生产配置申请到后再落内容。
+- 本机运行目录与目标机发布目录严格分离：本机用 `deploy/local-deploy/`，目标机包只从 `deploy/guolian-deploy/` 产出。
+
 ## 1. 全量包（full-deploy）
 
 ### 1.1 存放路径
 
 ```text
-/home/cloud/projects/AIExamK3/guolian/deploy-history/full-deploy
+/home/cloud/projects/AIExamK3/deploy/guolian-deploy/full-deploy
 ```
 
 ### 1.2 目录结构
@@ -73,11 +95,11 @@ AIExamK3/
 
 ### 1.5 源码同步要求
 
-**每次发布打包目标机全量包时，必须同步更新并推送远端 `guolian/deploy-history/full-deploy/source-code/` 目录。**
+**每次发布打包目标机全量包时，必须同步更新并推送远端 `deploy/guolian-deploy/full-deploy/source-code/` 目录。**
 
 具体操作：
 
-1. 将本次构建所使用的源码同步到 `guolian/deploy-history/full-deploy/source-code/code/`。
+1. 将本次构建所使用的源码同步到 `deploy/guolian-deploy/full-deploy/source-code/code/`。
 2. 确保 `source-code/` 下不包含 `node_modules/`、`target/`、`dist/` 等编译产物。
 3. 将 `source-code/` 的变更与本次发布说明一起提交到 Git，并推送至远端仓库。
 4. 远端仓库中的源码版本必须与本次发布的 `deploy-files/` 版本一一对应。
@@ -89,7 +111,7 @@ AIExamK3/
 ### 2.1 存放路径
 
 ```text
-/home/cloud/projects/AIExamK3/guolian/deploy-history/incremental-deploy
+/home/cloud/projects/AIExamK3/deploy/guolian-deploy/incremental-deploy
 ```
 
 ### 2.2 命名规则
@@ -146,14 +168,15 @@ deploy-increment-YYYYMMDD-vX.tar.gz
   - `target/`
   - `dist/`
   - `logs/`、`run/`（运行态目录）
-  - `guolian/deploy-history/**/*.tar.gz`
-  - `guolian/deploy-history/full-deploy/deploy-files/data/minio/exam-files/`
+  - `deploy/guolian-deploy/**/*.tar.gz`
+  - `deploy/guolian-deploy/full-deploy/deploy-files/data/minio/exam-files/`
+  - `deploy/local-deploy/`（本机运行产物，含本机明文配置）
   - `.venv*/`
 - Git 仓库保存的内容包括：
-  - 源码（根目录 `code/` 以及 `guolian/deploy-history/full-deploy/source-code/code/`）
+  - 源码（根目录 `code/` 以及 `deploy/guolian-deploy/full-deploy/source-code/code/`）
   - 配置、设计/需求文档、打包规约
   - 脚本源码等。
-- `guolian/deploy-history/full-deploy/source-code/` 必须随每次全量发布同步更新并推送。
+- `deploy/guolian-deploy/full-deploy/source-code/` 必须随每次全量发布同步更新并推送。
 
 ---
 
