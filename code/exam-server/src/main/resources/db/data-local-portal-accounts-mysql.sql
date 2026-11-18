@@ -30,3 +30,15 @@ INSERT INTO t_org_user_role (user_id, role_id, create_time, update_time)
 SELECT 41, 6, NOW(6), NOW(6)
 WHERE EXISTS (SELECT 1 FROM t_org_user WHERE id = 41)
   AND NOT EXISTS (SELECT 1 FROM t_org_user_role WHERE user_id = 41 AND role_id = 6);
+
+-- 超级管理员：手机号 18706197825（周云飞，工号 00001）
+-- 用途：本地模拟门户登录后可看到全部菜单（含工作流配置）。
+-- 幂等：按手机号定位，已授权则跳过。
+UPDATE t_org_user SET account_status = 1, update_time = NOW(6)
+WHERE phone = '18706197825' AND deleted = 0;
+
+INSERT INTO t_org_user_role (user_id, role_id, create_time, update_time)
+SELECT u.id, 1, NOW(6), NOW(6)
+FROM t_org_user u
+WHERE u.phone = '18706197825' AND u.deleted = 0
+  AND NOT EXISTS (SELECT 1 FROM t_org_user_role r WHERE r.user_id = u.id AND r.role_id = 1);

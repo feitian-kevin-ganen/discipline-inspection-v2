@@ -1,48 +1,77 @@
-# 发布说明 deploy-increment-20261117-v1.1
+# 发布说明 full-deploy-20261118-v1
 
-**适用场景**：测试机上已有全量包解压目录，用增量包覆盖后，再发布到在运目录。
-**打包日期**：2026-11-17
-**包顶层**：`./`（即包内文件名直接对应 `<staging>/` 下的相对路径）
-**累积性**：本包是自 `full-deploy-20261117-v1.tar.gz` 起的**累积增量**，无论是否已应用过 `deploy-increment-20261117-v1.tar.gz`，直接覆盖即可。
+**包类型**：测试机全量包（后端 + 三端前端 + 配置 + 中间件 + 数据副本 + 文档 + 脚本）
+**打包日期**：2026-11-18
+**包大小**：约 1.2 GB
+**包顶层**：`AIExamK3/`（解压到 `/root/fully-deploy` 得到 `/root/fully-deploy/AIExamK3`）
+**目标机**：10.64.16.29（国联测试环境）
+
+> 本包替代 `full-deploy-20261117-v1.tar.gz`。旧包的后端 jar 只打进了 `exam-common` 一个模块，启动即 `NoClassDefFoundError`，已改名为 `full-deploy-20261117-v1.broken-do-not-use.tar.gz`，**不要再用**。
 
 ---
 
-## 一、测试机目录角色（先认清三个路径）
+## 一、本包内容与校验点
 
-| 路径 | 角色 | 本脚本会不会动它 |
+| 项 | 值 / 校验方法 |
+|----|---------------|
+| 后端 | `app/exam-server.jar`，112,651,939 字节 |
+| jar 内模块 | 9 个：exam-common/exam/exam-integration/exam-learn/exam-practice/exam-question/exam-stat/exam-system/exam-workflow（`unzip -l app/exam-server.jar \| grep BOOT-INF/lib/exam-`） |
+| 工作流引擎 | Flowable（jar 内 `BOOT-INF/lib/flowable-*`），表结构 `flowable.database-schema-update=true` 自动建 |
+| 管理端 | `web/admin/`，构建 base `/mgmt/`，含 `审批流程`（待办 / 我发起的 / 流程定义）三个页面 |
+| 用户端 PC | `web/user/`，base `/learning-web/` |
+| H5 端 | `web/h5/`，base `/learning-h5/` |
+| 单点登录页 | `web/sso/index.html`（门户带 `?ticket=` 进入，按角色/终端分流） |
+| 外置配置 | `config/application-polardb.yml`：DB `10.64.16.14:4886/exam_db`、Redis `10.64.16.29:6379`、OSS `10.10.250.100:8333`（bucket `exam-files`）、AI `10.64.251.169:4000`、公服 `10.20.8.8:32389`（client-id `guolian-jijian`） |
+| 文档 | `docs/`，新增 `docs/flow-config.docx`（审批工作流配置与操作手册） |
+| 中间件 | `middleware/`：jdk21、ffmpeg、mysql-tools、minio（测试机已用 OSS，minio 仅兜底） |
+| 对象存储副本 | `data/minio/exam-files/`（主存储是 OSS，本地副本通常不参与运行） |
+
+自查命令（解压后执行）：
+
+```bash
+cd /root/fully-deploy/AIExamK3
+ls -l app/exam-server.jar
+unzip -l app/exam-server.jar | grep -c 'BOOT-INF/lib/exam-'
+unzip -p app/exam-server.jar BOOT-INF/classes/application.yml | head -40
+grep -oE '(src|href)="/[^"]+"' web/admin/index.html | head -3
+grep -oE '(src|href)="/[^"]+"' web/user/index.html  | head -3
+grep -oE '(src|href)="/[^"]+"' web/h5/index.html    | head -3
+ls -l docs/flow-config.docx web/sso/index.html
+```
+
+---
+
+## 二、三个路径角色（先认清）
+
+| 路径 | 角色 | 发布脚本是否改动 |
 |------|------|------------------|
-| `/root/fully-deploy/AIExamK3` | **staging**：全量包解压出来的待发布内容，增量包覆盖到这里 | 只读（脚本从它取文件） |
-| `/root/AIExamK3` | **live**：在运目录，三端与后端实际运行的地方 | 读写（同步 + 重启） |
-| `/data/InforSuiteLB` | **负载均衡** InforSuiteLB 安装目录 | 只改名站点配置并 reload |
-| `/data/rds-install` | 数据库安装目录 | **不动，绝对不要碰** |
-
-> 反向代理是 **InforSuiteLB**，不是 Nginx。测试机上不存在 nginx 配置文件，`scripts/` 里历史遗留的 `nginx-discipline-inspection.conf` 会在同步时被自动清除。
+| `/root/fully-deploy/AIExamK3` | **staging**：本包解压出来的待发布内容 | 只读（只从它取文件） |
+| `/root/AIExamK3` | **live**：在运目录，实际运行的地方 | 读写（同步 + 重启） |
+| `/data/InforSuiteLB` | 负载均衡 InforSuiteLB 安装目录（**不是 Nginx**） | 只校正站点配置文件名并 reload |
+| `/data/rds-install` | 数据库安装目录 | **不动** |
 
 ---
 
-## 二、发布步骤（在测试机 root 下执行）
+## 三、发布步骤（测试机 root 下执行）
 
-### 1. 把增量包覆盖到 staging
-
-```bash
-tar -xzf deploy-increment-20261117-v1.1.tar.gz -C /root/fully-deploy/AIExamK3
-```
-
-覆盖后 staging 应包含新增的 `scripts/deploy_release.sh` 和 `RELEASE.md`，可自查：
+### 1. 上传并解压到 staging
 
 ```bash
-ls -l /root/fully-deploy/AIExamK3/scripts/deploy_release.sh
-ls -l /root/fully-deploy/AIExamK3/RELEASE.md
+cd /root
+tar -xzf full-deploy-20261118-v1.tar.gz -C /root/fully-deploy
+# 若 /root/fully-deploy 不存在：mkdir -p /root/fully-deploy
+ls /root/fully-deploy/AIExamK3
 ```
 
-### 2. 发布前检查（不改动任何文件）
+解压后顶层应为：`app config data docs logs middleware run scripts web README.md RELEASE.md`。
+
+### 2. 发布前检查（不落盘、不重启）
 
 ```bash
 bash /root/fully-deploy/AIExamK3/scripts/deploy_release.sh check
 ```
 
-检查项：staging/live 是否同一目录、jar 是否存在、三端 `index.html` 的 base 是否为 `/mgmt/`、`/learning-web/`、`/learning-h5/`、staging 与 live 的配置差异、进程状态、磁盘余量、LB 站点配置文件名。
-**必须看到 `[info] 检查通过` 才能继续**；出现 `[warn]` 先按下文第五节处置。
+必须看到 `[info] 检查通过` 再继续。
 
 ### 3. 一键发布
 
@@ -50,151 +79,82 @@ bash /root/fully-deploy/AIExamK3/scripts/deploy_release.sh check
 bash /root/fully-deploy/AIExamK3/scripts/deploy_release.sh all --yes
 ```
 
-等价于依次执行：
-
-| 子命令 | 做什么 |
-|--------|--------|
-| `check` | 上面的发布前检查 |
-| `backup` | 调 `/root/AIExamK3/scripts/backup.sh`：数据库 `exam_db.sql.gz`、应用包 `app-package.tar.gz`、对象存储本地副本 `minio-data.tar.gz`（如存在）、配置，落到 `/root/AIExamK3-backup/<时间戳>/` |
-| `apply` | `app`、`docs`、`README.md` 增量覆盖；`web`、`scripts` 用 `--delete` 全量同步（清掉旧 hash 静态文件与废弃 nginx 配置）；**不覆盖** live 的 `config/application-polardb.yml` |
-| `lb` | 站点配置 `cra.conf` → `discipline-inspection.conf` 改名，`-t` 测试通过后 `-s reload` |
-| `restart` | `stop_all.sh` 后 `start_all.sh`，只重启本项目后端/Redis（测试机对象存储为远端 OSS，不在本机），LB 与数据库不动 |
-| `verify` | 三端入口 200 + `text/html`、首页引用带对应 base、后端 `/api/v1/health/db`，通过后再跑 `verify_api.py` |
-
-也可以分步执行（每一步都会交互确认，加 `--yes` 免确认）：
+首次安装（live 目录为空或中间件有升级）时加 `--with-runtime`，一并同步 `middleware/` 与 `data/`：
 
 ```bash
-S=/root/fully-deploy/AIExamK3/scripts/deploy_release.sh
-bash $S backup
-bash $S apply
-bash $S lb
-bash $S restart
-bash $S verify
+bash /root/fully-deploy/AIExamK3/scripts/deploy_release.sh all --yes --with-runtime
 ```
 
-只想看会做什么、不落盘：
+`all` = check → backup → apply → lb → restart → verify。
+
+### 4. 分步执行（可选，便于定位问题）
 
 ```bash
-bash /root/fully-deploy/AIExamK3/scripts/deploy_release.sh all --dry-run
+bash /root/fully-deploy/AIExamK3/scripts/deploy_release.sh check
+bash /root/fully-deploy/AIExamK3/scripts/deploy_release.sh backup
+bash /root/fully-deploy/AIExamK3/scripts/deploy_release.sh apply
+bash /root/fully-deploy/AIExamK3/scripts/deploy_release.sh lb
+bash /root/fully-deploy/AIExamK3/scripts/deploy_release.sh restart
+bash /root/fully-deploy/AIExamK3/scripts/deploy_release.sh verify
 ```
 
-### 4. 人工复核（脚本无法替代）
+`--dry-run` 可在任何动作前预演；`backup` 备份数据库、应用包、对象存储本地副本与配置，产物在 `/root/backup/` 下。
+
+### 5. 数据库脚本（按需，本包不含自动执行）
+
+超管账号（手机号 18706197825 授 SUPER_ADMIN）脚本在发布仓库 `guolian/test/project-files/db/grant-super-admin-18706197825.sql`，用测试机自带客户端执行：
 
 ```bash
-bash /root/AIExamK3/scripts/start_all.sh status
-curl -sI http://127.0.0.1:6003/mgmt/ | head -1
-curl -sI http://127.0.0.1:6003/learning-web/ | head -1
-curl -sI http://127.0.0.1:6003/learning-h5/ | head -1
-curl -s  http://127.0.0.1:6003/mgmt/ | grep -oE 'src="[^"]*"' | head -1
-curl -sI http://127.0.0.1:6001/guolian-jijian/login | grep -i content-type   # 应为 text/html
+/root/migration/tools/mysql/mysql.sh -h10.64.16.14 -P4886 -uexam_admin -p'<密码>' exam_db \
+  -e "source /root/grant-super-admin-18706197825.sql;"
 ```
 
-浏览器从**外部**访问一次（走 LB，统一入口 6003，不是直连端口）：`http://10.64.16.29:6003/mgmt/`、`http://10.64.16.29:6003/learning-web/`、`http://10.64.16.29:6003/learning-h5/`；门户单点登录 `http://10.64.16.29:6001/guolian-jijian/login`。
+执行后脚本会打印该账号的 `id/job_no/phone/emp_id/role_ids`。若查询为空，说明该手机号在 `t_org_user` 中不存在或未绑定 `emp_id`——门户单点登录按 `emp_id` 匹配账号，需先建号或补绑。
 
 ---
 
-## 三、本次发布包里有什么
+## 四、发布后验证
 
-| 内容 | 说明 |
+统一入口（InforSuiteLB，按路径前缀路由）：
+
+| 入口 | 地址 |
 |------|------|
-| `web/admin/`、`web/user/`、`web/h5/` | 三端产物，base 分别为 `/mgmt/`、`/learning-web/`、`/learning-h5/` |
-| `scripts/` | `start_all.sh`、`stop_all.sh`、`backup.sh`、`verify_api.py`、`verify_pdf_pages.py`、`pg_to_mysql.py`，以及**新增** `deploy_release.sh` |
-| `README.md`、`RELEASE.md` | 全量包说明与本发布说明 |
-| `docs/migration.md` | 迁移文档（反向代理表述已改为 InforSuiteLB） |
-| `logs/.gitkeep`、`run/.gitkeep` | 目录占位 |
-| `UPDATE.md` | 变更清单 |
+| 管理端 | `http://10.64.16.29:6003/mgmt/` |
+| 用户端 PC | `http://10.64.16.29:6003/learning-web/` |
+| H5 端 | `http://10.64.16.29:6003/learning-h5/` |
+| 门户单点登录 | `http://10.64.16.29:6003/guolian-jijian/login?ticket=<票据>` |
+| 后端直连 | `http://10.64.16.29:8088/api/v1/...` |
 
-**不在包内**：`app/exam-server.jar`（本次不变）、`config/application-polardb.yml`（本次不变，且 `apply` 不会覆盖 live 配置）、`middleware/`、`data/`、`db/`（本次无数据库变更）。
+快速验证：
+
+```bash
+curl -sI http://127.0.0.1:6003/mgmt/ | head -3
+curl -sI http://127.0.0.1:6003/learning-web/ | head -3
+curl -sI http://127.0.0.1:6003/learning-h5/ | head -3
+curl -s  http://127.0.0.1:8088/api/v1/health/db
+```
+
+脚本自带 `verify` 会覆盖上述检查。前端发版后若页面仍是旧界面，是浏览器缓存旧 JS：入口 html 已加 `Cache-Control: no-store`，强制刷新（Ctrl+F5）即可。
 
 ---
 
-## 四、两个必须知道的行为
+## 五、回滚
 
-### 1. 配置不覆盖，只生成 `.new`
-
-`apply` 发现 staging 与 live 的 `config/application-polardb.yml` 不一致时：
-
-- 不会覆盖 live 配置，只写 `config/application-polardb.yml.new`
-- 并在 `check` 阶段打印 diff
-
-确认要采用新配置时手工执行：
-
-```bash
-cp /root/AIExamK3/config/application-polardb.yml.new /root/AIExamK3/config/application-polardb.yml
-bash /root/AIExamK3/scripts/stop_all.sh && bash /root/AIExamK3/scripts/start_all.sh
-```
-
-### 2. nginx 残留配置自动清除
-
-`scripts/` 走 `--delete` 同步，历史文件 `/root/AIExamK3/scripts/nginx-discipline-inspection.conf` 会被自动删除，无需再手工 `rm -f`。
-
----
-
-## 五、LB 改名失败怎么办
-
-`lb` 子命令先做改名，再检查主配置里是否仍引用旧文件名：
-
-```bash
-cd /data/InforSuiteLB/conf
-[ -f cra.conf ] && mv cra.conf discipline-inspection.conf
-grep -rn "cra.conf" /data/InforSuiteLB/conf/ || true
-```
-
-若 `grep` 仍有命中（通常是 `InforSuiteLB.conf` 里写着 `include conf/cra.conf;`），脚本会**报错退出且不重载**。处置：
-
-```bash
-vi /data/InforSuiteLB/conf/InforSuiteLB.conf      # 把 include 改成 discipline-inspection.conf
-/data/InforSuiteLB/sbin/InforSuiteLB -p /data/InforSuiteLB -c /data/InforSuiteLB/conf/InforSuiteLB.conf -t
-/data/InforSuiteLB/sbin/InforSuiteLB -p /data/InforSuiteLB -c /data/InforSuiteLB/conf/InforSuiteLB.conf -s reload
-```
-
-改完再跑一次 `bash /root/fully-deploy/AIExamK3/scripts/deploy_release.sh lb` 即可。
-
-站点配置内容（`discipline-inspection.conf`）不在本包内；若三端 404/白屏而进程正常，按下列映射现场核对：
-
-三端与 `/api/` 收敛在**统一入口 `6003`**，按路径前缀路由：
-
-| 端 | 上下文 | 静态根 | 监听端口 |
-|----|--------|--------|----------|
-| 管理端 | `/mgmt/` | `/root/AIExamK3/web/admin` | 6003 |
-| PC 用户端 | `/learning-web/` | `/root/AIExamK3/web/user` | 6003 |
-| H5 | `/learning-h5/` | `/root/AIExamK3/web/h5` | 6003 |
-| 后端 API | `/api/` → `127.0.0.1:8088` | `app/exam-server.jar` | 6003 |
-| 门户单点登录 | `/guolian-jijian/login` | `/root/AIExamK3/web/sso/index.html` | 6001（兼容段） |
-| 根路径跳转 | `/` → 302 `/learning-h5/` | — | 6001（兼容段） |
-
-`80` 端口是中创 LB 管控平台（`/console`、`/api` 管控接口），与业务发布无关。`web/sso/index.html` 由 LB 直接 alias，不由三端构建产出，包内不含；`apply` 会保留在运目录已有的 `web/sso/`。
-
----
-
-## 六、回滚
+`backup` 步骤的产物（`/root/backup/<时间戳>/`）包含上一版应用包、配置与数据库导出：
 
 ```bash
 bash /root/AIExamK3/scripts/stop_all.sh
-
-# 备份目录形如 /root/AIExamK3-backup/20261117_153000/
-ls -lt /root/AIExamK3-backup/ | head
-
-# 恢复应用包与配置
-tar -xzf /root/AIExamK3-backup/<时间戳>/app-package.tar.gz -C /root/AIExamK3
-chmod +x /root/AIExamK3/scripts/*.sh
-chmod -R a+rX /root/AIExamK3/web
-
+# 用备份中的应用包与配置覆盖 /root/AIExamK3 后重启
 bash /root/AIExamK3/scripts/start_all.sh
 ```
 
-需要回库时才用 `exam_db.sql.gz`：
-
-```bash
-/root/migration/tools/mysql/mysql.sh -h10.64.16.14 -P4886 -uexam_admin -p'z>PD?8Wr_W7h' exam_db < <(zcat /root/AIExamK3-backup/<时间戳>/exam_db.sql.gz)
-```
+数据库回滚用备份的 dump 导入，导入前确认业务已停止写入。
 
 ---
 
-## 七、已知事项
+## 六、已知事项
 
-- 测试机文件存储是**远端 OSS**（S3 兼容；当前配置端点 `http://10.10.250.100:8333`，bucket `exam-files`），不是本机 MinIO。应用配置前缀仍为 `exam.minio.*`，无需改名；`start_all.sh` 只做连通性探测，不会启动本地 MinIO，`backup.sh` 的 `minio-data.tar.gz` 仅在本地副本存在时生成。
-- 本次**无数据库结构变更**，包内无 `db/` 补丁。
-- `apply` 会以 staging 的 `scripts/` 全量替换 live 的 `scripts/`。若现场曾手工改过 live 的脚本，先跑 `backup`（`all` 已包含），差异可从备份里取回。
-- 测试机若装了 `rsync`，同步走 `rsync -a --delete`；没装则退化为 `cp -a`（`--delete` 场景先清空目录再拷贝），行为一致只是更慢。
-- `verify` 里的 `verify_api.py` 依赖后端健康检查通过；后端未就绪时会打印 warn 但不阻断前面三端的结论。
+- 反向代理是 **InforSuiteLB**，不是 Nginx；测试机上没有 nginx 配置。站点配置在 `/data/InforSuiteLB/conf/discipline-inspection.conf`（历史文件名 `cra.conf` 已由 `lb` 步骤自动改名并校验）。
+- 6000 是 Chrome 受限端口，不可用作入口；80 属于中创 LB 管控平台，与业务无关。
+- 对象存储是 OSS（S3 兼容），配置项前缀仍沿用 `exam.minio.*`，只改端点/密钥，不改代码。
+- `data/minio/exam-files/` 是本地副本，OSS 已迁移完成，正常运行不依赖它。

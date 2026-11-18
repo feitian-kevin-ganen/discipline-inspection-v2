@@ -130,7 +130,7 @@ exam:
 | 兼容跳转 | `/` → 302 `/learning-h5/` | — | 6001（兼容段） |
 
 - 每个 location 需 `try_files $uri $uri/ /<base>/index.html` 做 SPA 回退；入口 html 加 `Cache-Control: no-store`，hash 静态资源长缓存。
-- `web/sso/index.html` 由 LB 直接 `alias`，不是三端构建产物，本包内不含；`apply` 会保留在运目录已有的 `web/sso/`（`web` 的 `--delete` 已排除 `sso/`）。
+- `web/sso/index.html` 由 LB 直接 `alias`，不是三端构建产物：**本包已包含**该页（门户单点登录入口）；`apply` 仍不覆盖在运目录已有的 `web/sso/`（`web` 的 `--delete` 已排除 `sso/`），避免发布时被旧版覆盖。若测试机缺失该文件，手动 `cp /root/fully-deploy/AIExamK3/web/sso/index.html /root/AIExamK3/web/sso/`。
 - `80` 端口是中创 LB 管控平台（`/console`、`/api` 管控接口），与业务无关。
 
 本包**不包含 LB 配置变更**。若站点配置文件仍是历史名称 `cra.conf`，按下列步骤改名（配置内容已切换为本系统，无需改内容）：
