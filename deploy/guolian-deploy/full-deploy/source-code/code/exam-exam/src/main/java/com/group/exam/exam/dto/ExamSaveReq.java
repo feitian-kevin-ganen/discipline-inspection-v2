@@ -7,7 +7,7 @@ import java.io.Serializable;
 import java.time.LocalDateTime;
 
 /**
- * 创建/编辑考试场次（EXAM-02/04）
+ * 创建/编辑测试场次（EXAM-02/04）
  */
 @Data
 public class ExamSaveReq implements Serializable {
@@ -37,6 +37,6 @@ public class ExamSaveReq implements Serializable {
 
     private Boolean shuffleOption;
 
-    /** 考试须知富文本（t_exam_session 无独立列，存 paper_strategy_snapshot.notice） */
+    /** 测试须知富文本（t_exam_session 无独立列，存 paper_strategy_snapshot.notice） */
     private String notice;
 }

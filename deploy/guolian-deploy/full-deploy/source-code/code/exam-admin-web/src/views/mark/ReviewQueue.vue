@@ -2,7 +2,7 @@
   <div class="page-container">
     <div class="page-card">
       <div class="toolbar">
-        <el-select v-model="query.examId" placeholder="考试场次" clearable filterable style="width: 240px" @change="handleSearch">
+        <el-select v-model="query.examId" placeholder="测试场次" clearable filterable style="width: 240px" @change="handleSearch">
           <el-option v-for="e in examOptions" :key="e.examId" :label="e.examName" :value="e.examId" />
         </el-select>
         <el-select v-model="query.reviewType" placeholder="复核类型" clearable style="width: 180px" @change="handleSearch">
@@ -20,7 +20,7 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="examName" label="考试" min-width="160" show-overflow-tooltip />
+        <el-table-column prop="examName" label="测试" min-width="160" show-overflow-tooltip />
         <el-table-column prop="stemText" label="题干" min-width="200" show-overflow-tooltip />
         <el-table-column prop="candidateAnswer" label="考生答案" min-width="160" show-overflow-tooltip />
         <el-table-column prop="standardAnswer" label="标准答案" min-width="140" show-overflow-tooltip />
@@ -64,7 +64,7 @@
               {{ REVIEW_TYPES[current.reviewType] || current.reviewType }}
             </el-tag>
           </el-descriptions-item>
-          <el-descriptions-item label="考试">{{ current.examName }}</el-descriptions-item>
+          <el-descriptions-item label="测试">{{ current.examName }}</el-descriptions-item>
           <el-descriptions-item label="题干">{{ current.stemText }}</el-descriptions-item>
           <el-descriptions-item label="考生答案">{{ current.candidateAnswer || '（未作答）' }}</el-descriptions-item>
           <el-descriptions-item label="标准答案">{{ current.standardAnswer || '-' }}</el-descriptions-item>

@@ -4,7 +4,7 @@
       <div class="toolbar">
         <el-select
           v-model="query.examId"
-          placeholder="考试场次"
+          placeholder="测试场次"
           clearable
           filterable
           style="width: 280px"
@@ -20,7 +20,7 @@
       </div>
 
       <el-table v-loading="loading" :data="list" border stripe>
-        <el-table-column prop="examName" label="考试" min-width="200" show-overflow-tooltip />
+        <el-table-column prop="examName" label="测试" min-width="200" show-overflow-tooltip />
         <el-table-column prop="jobNo" label="工号" width="120" />
         <el-table-column prop="name" label="姓名" width="110" />
         <el-table-column label="异常类型" width="120">
@@ -31,7 +31,9 @@
           </template>
         </el-table-column>
         <el-table-column prop="detail" label="详情" min-width="240" show-overflow-tooltip />
-        <el-table-column prop="occurTime" label="发生时间" width="170" />
+        <el-table-column label="发生时间" width="170">
+          <template #default="{ row }">{{ fmtTime(row.occurTime) }}</template>
+        </el-table-column>
       </el-table>
 
       <div class="pager">
@@ -54,6 +56,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { sysApi, examApi } from '../../api'
 import { ABNORMAL_TYPES } from '../../utils/dict'
+import { fmtTime } from '../../utils/format'
 
 const route = useRoute()
 

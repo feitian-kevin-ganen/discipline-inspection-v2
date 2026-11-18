@@ -2,8 +2,8 @@
   <div class="page-container">
     <div class="page-card">
       <div class="toolbar">
-        <el-input v-model="query.keyword" placeholder="考试名称关键字" clearable style="width: 220px" @keyup.enter="onSearch" @clear="onSearch" />
-        <el-select v-model="query.status" placeholder="考试状态" clearable style="width: 160px" @change="onSearch">
+        <el-input v-model="query.keyword" placeholder="测试名称关键字" clearable style="width: 220px" @keyup.enter="onSearch" @clear="onSearch" />
+        <el-select v-model="query.status" placeholder="测试状态" clearable style="width: 160px" @change="onSearch">
           <el-option v-for="(v, k) in EXAM_STATUS" :key="k" :label="v.label" :value="k" />
         </el-select>
         <el-date-picker
@@ -19,11 +19,11 @@
         <el-button type="primary" @click="onSearch">查询</el-button>
         <el-button @click="onReset">重置</el-button>
         <div class="spacer" />
-        <el-button type="primary" @click="$router.push('/exams/edit')">创建考试</el-button>
+        <el-button type="primary" @click="$router.push('/exams/edit')">创建测试</el-button>
       </div>
 
       <el-table :data="list" v-loading="loading" border>
-        <el-table-column prop="examName" label="考试名称" min-width="180" show-overflow-tooltip />
+        <el-table-column prop="examName" label="测试名称" min-width="180" show-overflow-tooltip />
         <el-table-column prop="paperName" label="试卷" min-width="160" show-overflow-tooltip />
         <el-table-column label="类型" width="110" align="center">
           <template #default="{ row }">
@@ -31,8 +31,12 @@
             <span v-else>{{ row.paperType }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="startTime" label="开考时间" width="165" />
-        <el-table-column prop="endTime" label="结束时间" width="165" />
+        <el-table-column label="开考时间" width="165">
+          <template #default="{ row }">{{ fmtTime(row.startTime) }}</template>
+        </el-table-column>
+        <el-table-column label="结束时间" width="165">
+          <template #default="{ row }">{{ fmtTime(row.endTime) }}</template>
+        </el-table-column>
         <el-table-column label="时长" width="90" align="center">
           <template #default="{ row }">{{ row.durationMin }} 分钟</template>
         </el-table-column>
@@ -77,6 +81,7 @@ import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { examApi } from '../../api'
 import { EXAM_STATUS, PAPER_TYPES } from '../../utils/dict'
+import { fmtTime } from '../../utils/format'
 
 const loading = ref(false)
 const list = ref([])
@@ -114,9 +119,9 @@ function onReset() {
 }
 
 const ACTION_TIPS = {
-  START: { title: '开始考试', msg: '确认提前开考？考生将可进入本场考试。' },
-  END: { title: '结束考试', msg: '确认提前结束本场考试？将强制收取未交卷答卷。' },
-  CANCEL: { title: '取消考试', msg: '确认取消本场考试？取消后不可恢复。' }
+  START: { title: '开始测试', msg: '确认提前开考？考生将可进入本场测试。' },
+  END: { title: '结束测试', msg: '确认提前结束本场测试？将强制收取未交卷答卷。' },
+  CANCEL: { title: '取消测试', msg: '确认取消本场测试？取消后不可恢复。' }
 }
 
 async function onAction(row, action) {
@@ -128,7 +133,7 @@ async function onAction(row, action) {
 }
 
 async function onRemove(row) {
-  await ElMessageBox.confirm(`确认删除考试「${row.examName}」？删除后不可恢复。`, '删除考试', { type: 'warning' })
+  await ElMessageBox.confirm(`确认删除测试「${row.examName}」？删除后不可恢复。`, '删除测试', { type: 'warning' })
   await examApi.remove(row.examId)
   ElMessage.success('删除成功')
   load()

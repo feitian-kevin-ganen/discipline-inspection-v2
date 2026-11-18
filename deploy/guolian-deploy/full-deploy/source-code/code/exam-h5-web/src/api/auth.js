@@ -10,6 +10,11 @@ export function login({ username, password }) {
   )
 }
 
+// 国联 APP ticket 免密登录（白名单）
+export function ticketLogin({ ticket, clientId }) {
+  return service.post('/integration/ticket/login', { ticket, clientId })
+}
+
 // AUTH-02 登出
 export function logout() {
   return service.post('/auth/logout')

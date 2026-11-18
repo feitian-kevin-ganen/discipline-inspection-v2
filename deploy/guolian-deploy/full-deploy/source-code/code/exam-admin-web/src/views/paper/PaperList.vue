@@ -39,7 +39,9 @@
         </el-table-column>
         <el-table-column prop="useCount" label="使用次数" width="90" align="center" />
         <el-table-column prop="createdBy" label="创建人" width="110" show-overflow-tooltip />
-        <el-table-column prop="createdTime" label="创建时间" width="170" />
+        <el-table-column label="创建时间" width="170">
+          <template #default="{ row }">{{ fmtTime(row.createdTime) }}</template>
+        </el-table-column>
         <el-table-column label="操作" width="300" fixed="right">
           <template #default="{ row }">
             <el-button v-if="row.status !== 'SEALED'" link type="primary" @click="router.push(`/papers/edit/${row.paperId}`)">编辑</el-button>
@@ -72,6 +74,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { paperApi } from '../../api'
 import { PAPER_TYPES, PAPER_STATUS } from '../../utils/dict'
+import { fmtTime } from '../../utils/format'
 
 const router = useRouter()
 const loading = ref(false)

@@ -43,7 +43,7 @@
             </div>
             <van-progress
               v-if="item.myProgress && item.myProgress.progressPct > 0"
-              :percentage="Math.round(item.myProgress.progressPct * 100)"
+              :percentage="Math.min(100, Math.round(Number(item.myProgress.progressPct) || 0))"
               stroke-width="4"
               class="card-progress"
             />

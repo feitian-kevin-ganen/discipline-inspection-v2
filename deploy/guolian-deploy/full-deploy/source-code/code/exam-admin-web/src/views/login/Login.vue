@@ -1,7 +1,7 @@
 <template>
   <div class="login-page">
-    <div class="login-box">
-      <h2>纪检监察人员在线考试系统</h2>
+    <div class="login-box" v-if="ready" v-loading="ssoLoading" element-loading-text="单点登录中...">
+      <h2>“纪检监察业务”学习平台</h2>
       <p class="sub">管理端登录</p>
       <el-form ref="formRef" :model="form" :rules="rules" size="large" @keyup.enter="submit">
         <el-form-item prop="username">
@@ -15,11 +15,12 @@
         </el-button>
       </el-form>
     </div>
+    <div v-else class="sso-wait">登录成功，正在进入…</div>
   </div>
 </template>
 
 <script setup>
-import { reactive, ref } from 'vue'
+import { onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { User, Lock } from '@element-plus/icons-vue'
@@ -31,11 +32,40 @@ const auth = useAuthStore()
 
 const formRef = ref()
 const loading = ref(false)
+const ssoLoading = ref(false)
+const ready = ref(false)
 const form = reactive({ username: '', password: '' })
 const rules = {
   username: [{ required: true, message: '请输入工号', trigger: 'blur' }],
   password: [{ required: true, message: '请输入密码', trigger: 'blur' }]
 }
+
+// 门户统一入口 /login 已完成 ticket 换令牌并写入本地存储，这里直接跳首页（不渲染登录表单，避免闪烁）
+onMounted(async () => {
+  if (sessionStorage.getItem('sso_redirect')) {
+    sessionStorage.removeItem('sso_redirect')
+    router.replace(route.query.redirect || '/')
+    return
+  }
+  ready.value = true
+  // 国联 APP/门户单点免密登录：地址携带 ?ticket=xxx 跳转回来时自动登录
+  const ticket = route.query.ticket
+  if (!ticket || typeof ticket !== 'string') return
+  ssoLoading.value = true
+  try {
+    const data = await auth.loginByTicket(ticket.trim())
+    ElMessage.success('单点登录成功')
+    if (data.mustChangePassword) {
+      router.replace('/change-password')
+    } else {
+      router.replace(route.query.redirect || '/')
+    }
+  } catch (e) {
+    // 拦截器已提示具体原因，回退到工号密码登录
+  } finally {
+    ssoLoading.value = false
+  }
+})
 
 async function submit() {
   await formRef.value.validate()
@@ -76,6 +106,11 @@ h2 {
   text-align: center;
   font-size: 20px;
   color: #303133;
+}
+.sso-wait {
+  color: #fff;
+  font-size: 16px;
+  letter-spacing: 1px;
 }
 .sub {
   text-align: center;

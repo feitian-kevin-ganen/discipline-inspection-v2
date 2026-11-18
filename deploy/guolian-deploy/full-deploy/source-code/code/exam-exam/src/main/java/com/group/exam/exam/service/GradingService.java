@@ -192,7 +192,7 @@ public class GradingService {
     }
 
     /**
-     * 填空比对（考试判分/练习即时判定共用口径）：解析标准答案 blanks 与 config 后逐空比对，
+     * 填空比对（测试判分/练习即时判定共用口径）：解析标准答案 blanks 与 config 后逐空比对，
      * 返回 int[]{命中空数, 总空数}；无标准空时返回 {0, 0}。
      */
     @SuppressWarnings("unchecked")

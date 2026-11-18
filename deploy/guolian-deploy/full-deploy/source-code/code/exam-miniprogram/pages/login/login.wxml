@@ -1,7 +1,7 @@
 <view class="login-page">
   <view class="login-header">
     <view class="login-logo">🛡</view>
-    <view class="login-title">纪检监察人员在线考试系统</view>
+    <view class="login-title">“纪检监察业务”学习平台</view>
     <view class="login-sub">微信小程序端</view>
   </view>
 

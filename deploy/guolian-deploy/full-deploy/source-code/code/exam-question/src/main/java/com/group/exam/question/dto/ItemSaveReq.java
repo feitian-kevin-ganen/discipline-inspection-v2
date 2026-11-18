@@ -54,6 +54,9 @@ public class ItemSaveReq implements Serializable {
     /** 来源章节(V1.1) */
     private String sourceChapter;
 
+    /** 题目来源：AI=AI生成采纳，MANUAL=人工录入（默认）；仅 create 生效，update 不改变来源 */
+    private String genType;
+
     /** 填空判分配置 {ignoreCase,ignoreWidth,blankOrdered} */
     private Map<String, Object> fillConfig;
 
@@ -151,6 +154,14 @@ public class ItemSaveReq implements Serializable {
 
     public void setSourceChapter(String sourceChapter) {
         this.sourceChapter = sourceChapter;
+    }
+
+    public String getGenType() {
+        return this.genType;
+    }
+
+    public void setGenType(String genType) {
+        this.genType = genType;
     }
 
     public Map<String, Object> getFillConfig() {

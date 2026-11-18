@@ -1,6 +1,7 @@
 package com.group.exam.server;
 
 import com.group.exam.common.core.Result;
+import com.group.exam.common.util.DbDialect;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -33,13 +34,16 @@ public class HealthController {
         Map<String, Object> info = new HashMap<>();
         String version = jdbcTemplate.queryForObject("select version()", String.class);
         info.put("version", version);
-        boolean mysql = version != null && (version.contains("MySQL") || version.contains("X-Cluster") || version.contains("Cluster"));
-        info.put("currentDatabase", mysql
+        info.put("currentDatabase", mysqlDialect()
                 ? jdbcTemplate.queryForObject("select database()", String.class)
                 : jdbcTemplate.queryForObject("select current_database()", String.class));
         info.put("adminCount", jdbcTemplate.queryForObject(
                 "select count(*) from t_org_user where deleted=0 and job_no='admin'", Integer.class));
         info.put("userTotal", jdbcTemplate.queryForObject("select count(*) from t_org_user", Integer.class));
         return Result.ok(info);
+    }
+
+    private boolean mysqlDialect() {
+        return DbDialect.isMysql(jdbcTemplate.getDataSource());
     }
 }

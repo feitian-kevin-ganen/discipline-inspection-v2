@@ -5,13 +5,11 @@ import com.group.exam.common.exception.BizException;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
-import org.jsoup.nodes.TextNode;
 import org.jsoup.select.Elements;
 import org.springframework.stereotype.Service;
 
 import java.net.InetAddress;
 import java.net.URI;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -23,27 +21,15 @@ import java.util.Map;
 @Service
 public class UrlContentService {
 
-    private static final int TIMEOUT_MS = 10000;
+    private static final int TIMEOUT_MS = 20000;
     private static final int MAX_BODY_BYTES = 3 * 1024 * 1024;
     /** 常见正文容器选择器，按命中文本量最大的取 */
     private static final List<String> CONTENT_SELECTORS = List.of(
             "article", ".article-content", ".article_content", ".article-body", ".article",
-            "#article", ".post-content", ".entry-content", ".detail-content", ".content",
-            "#content", ".main-content", "main", ".TRS_Editor", ".Custom_UnionStyle");
-
-    /** 允许保留的排版标签（除此之外的标签一律解包，仅保留其子内容） */
-    private static final java.util.Set<String> KEEP_TAGS = java.util.Set.of(
-            "p", "br", "h1", "h2", "h3", "h4", "h5", "h6", "ul", "ol", "li", "blockquote",
-            "table", "thead", "tbody", "tr", "td", "th", "img", "a", "strong", "b",
-            "em", "i", "u", "s", "strike", "span", "hr", "figure", "figcaption", "section");
-    /** 块级标签（div 含块级子元素时解包而非转 p） */
-    private static final java.util.Set<String> BLOCK_TAGS = java.util.Set.of(
-            "p", "div", "h1", "h2", "h3", "h4", "h5", "h6", "ul", "ol", "li", "blockquote",
-            "table", "section", "article", "header", "footer", "figure", "hr");
-    /** 允许保留的样式属性（其余样式一律剥离） */
-    private static final java.util.Set<String> KEEP_STYLES = java.util.Set.of(
-            "text-align", "line-height", "color", "background-color",
-            "font-weight", "font-style", "text-decoration", "text-decoration-line", "font-size");
+            "#article", ".post-content", ".entry-content", ".detail-content", ".detail",
+            ".news-content", ".news_content", ".article-detail", ".text-content",
+            ".contentMain", "#zoom",
+            ".content", "#content", ".main-content", "main", ".TRS_Editor", ".Custom_UnionStyle");
 
     public Map<String, Object> fetch(String url) {
         URI uri = parseAndGuard(url);
@@ -66,6 +52,8 @@ public class UrlContentService {
         // 相对链接/图片地址转绝对地址，保证入库后可独立展示
         absolutize(content, "img", "src");
         absolutize(content, "a", "href");
+        // 转成管理端富文本(wangEditor)能完整保留的形态，避免解析回填时丢失字体/字号/行距
+        normalizeForEditor(content);
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("title", doc.title() == null ? "" : doc.title().trim());
@@ -108,160 +96,189 @@ public class UrlContentService {
         return uri;
     }
 
-    /** 正文容器评分选取：含长文本段落数优先，文本长度次之，链接文本罚分（排除面包屑/导航外层容器） */
     private Element pickMainContent(Document doc) {
         Element best = null;
-        long bestScore = -1;
+        int bestLen = 0;
         for (String sel : CONTENT_SELECTORS) {
-            for (Element el : doc.select(sel)) {
-                if (isExcludedContainer(el)) {
-                    continue;
-                }
-                long pCount = 0;
-                for (Element p : el.select("p")) {
-                    if (p.text().trim().length() > 30) {
-                        pCount++;
-                    }
-                }
-                long linkTextLen = 0;
-                for (Element a : el.select("a")) {
-                    linkTextLen += a.text().length();
-                }
-                long score = pCount * 1000 + el.text().length() - linkTextLen * 3;
-                if (score > bestScore) {
-                    bestScore = score;
+            Element el = doc.selectFirst(sel);
+            if (el != null) {
+                int len = el.text().length();
+                if (len > bestLen) {
                     best = el;
+                    bestLen = len;
                 }
             }
         }
         return best != null ? best : doc.body();
     }
 
-    private boolean isExcludedContainer(Element el) {
-        String marker = (el.id() + " " + el.className()).toLowerCase();
-        for (String bad : List.of("header", "footer", "nav", "sidebar", "menu", "banner", "topbar", "crumb")) {
-            if (marker.contains(bad)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
-     * 规范化正文 HTML：删除脚本与交互控件；非白名单标签解包；纯文本 div 转 p；
-     * 属性仅保留白名单样式（img 留 src/alt，a 留 href）；text-indent 缩进物化为段首两个全角空格，
-     * 保证经任意富文本编辑器归一化后分段、换行、首行缩进仍保留。
-     */
+    /** 清除脚本、样式、交互控件与行内事件；行内 style 走白名单净化，保留缩进/对齐/行距等排版 */
     private void clean(Element root) {
         root.select("script, style, iframe, frame, frameset, form, input, button, select, textarea, "
                 + "noscript, link, meta, object, embed, video, audio, canvas, svg").remove();
-        List<Element> all = new ArrayList<>(root.getAllElements());
+        Elements all = root.getAllElements();
         for (Element el : all) {
-            if (el == root) {
-                continue;
-            }
-            String tag = el.tagName().toLowerCase();
-            if ("div".equals(tag)) {
-                handleDiv(el);
-            } else if (!KEEP_TAGS.contains(tag)) {
-                el.unwrap();
-            } else {
-                scrubAttrs(el);
+            el.attributes().asList().stream()
+                    .map(attr -> attr.getKey())
+                    .filter(key -> key.startsWith("on"))
+                    .forEach(key -> el.removeAttr(key));
+            String style = el.attr("style");
+            if (!style.isEmpty()) {
+                String safe = sanitizeStyle(style);
+                if (safe.isEmpty()) {
+                    el.removeAttr("style");
+                } else {
+                    el.attr("style", safe);
+                }
             }
         }
     }
 
-    /** div 处理：含块级子元素或为空则解包；纯文本 div 转为 p 段落 */
-    private void handleDiv(Element el) {
-        boolean hasBlockChild = false;
-        for (Element child : el.children()) {
-            if (BLOCK_TAGS.contains(child.tagName().toLowerCase())) {
-                hasBlockChild = true;
-                break;
-            }
-        }
-        if (hasBlockChild || el.text().isBlank()) {
-            el.unwrap();
-        } else {
-            el.tagName("p");
-            scrubAttrs(el);
-        }
-    }
+    /** 允许保留的排版相关 CSS 属性（分段间距、换行行距、首行缩进、对齐、字号字重等） */
+    private static final java.util.Set<String> STYLE_WHITELIST = java.util.Set.of(
+            "text-indent", "text-align", "line-height", "letter-spacing",
+            "font-size", "font-weight", "font-style", "font-family",
+            "color", "background-color", "text-decoration", "text-decoration-line",
+            "margin", "margin-top", "margin-bottom", "margin-left", "margin-right",
+            "padding", "padding-top", "padding-bottom", "padding-left", "padding-right");
 
-    /** 清理解包后保留标签的属性：剥离 class、id、行内事件与 data-* 等，仅保留白名单样式与必要的链接属性 */
-    private void scrubAttrs(Element el) {
-        String tag = el.tagName().toLowerCase();
-        String src = el.attr("src");
-        String alt = el.attr("alt");
-        String href = el.attr("href");
-        String style = el.attr("style");
-        el.clearAttributes();
-        if ("img".equals(tag)) {
-            if (!src.isEmpty()) {
-                el.attr("src", src);
-            }
-            if (!alt.isEmpty()) {
-                el.attr("alt", alt);
-            }
-        } else if ("a".equals(tag)) {
-            if (!href.isEmpty()) {
-                el.attr("href", href);
-                el.attr("target", "_blank");
-            }
-        }
-        String kept = filterStyle(el, style);
-        if (!kept.isEmpty()) {
-            el.attr("style", kept);
-        }
-    }
-
-    /** 样式白名单过滤；text-indent>=1em 的段落段首插入两个全角空格后丢弃该样式 */
-    private String filterStyle(Element el, String style) {
-        if (style == null || style.isBlank()) {
-            return "";
-        }
+    /** 行内样式净化：仅保留白名单属性，剔除 url()/expression 等可注入项 */
+    private String sanitizeStyle(String style) {
         StringBuilder sb = new StringBuilder();
         for (String decl : style.split(";")) {
-            int idx = decl.indexOf(':');
-            if (idx <= 0) {
+            int colon = decl.indexOf(':');
+            if (colon <= 0) {
                 continue;
             }
-            String key = decl.substring(0, idx).trim().toLowerCase();
-            String val = decl.substring(idx + 1).trim();
-            if (val.toLowerCase().endsWith("!important")) {
-                val = val.substring(0, val.length() - "!important".length()).trim();
-            }
-            if ("text-indent".equals(key)) {
-                if (indentEm(val) >= 1.0 && !el.text().startsWith("　")) {
-                    el.prependChild(new TextNode("　　"));
-                }
+            String prop = decl.substring(0, colon).trim().toLowerCase();
+            String val = decl.substring(colon + 1).trim();
+            if (!STYLE_WHITELIST.contains(prop) || val.isEmpty()) {
                 continue;
             }
-            if (KEEP_STYLES.contains(key)) {
-                sb.append(key).append(':').append(val).append(';');
+            String lv = val.toLowerCase();
+            if (lv.contains("url(") || lv.contains("expression") || lv.contains("\"") || lv.contains("'")) {
+                continue;
             }
+            sb.append(prop).append(':').append(val).append(';');
         }
         return sb.toString();
     }
 
-    /** text-indent 值换算为 em（px 按 16px=1em 折算），无法解析返回 0 */
-    private double indentEm(String val) {
-        try {
-            String v = val.toLowerCase().trim();
-            if (v.endsWith("em")) {
-                return Double.parseDouble(v.substring(0, v.length() - 2).trim());
+    /** 需要把字体样式下沉到内联 span 的块级标签 */
+    private static final java.util.Set<String> BLOCK_TAGS = java.util.Set.of(
+            "p", "div", "section", "article", "li", "td", "th", "blockquote",
+            "h1", "h2", "h3", "h4", "h5", "h6");
+
+    /**
+     * 适配管理端富文本(wangEditor)的解析规则：
+     * 1. 块级元素上的 font-family/font-size 会被编辑器丢弃，下沉为包裹子内容的内联 span；
+     * 2. 编辑器行距仅接受无单位倍数，把 px/em/% 行距按同元素字号换算成倍数。
+     */
+    private void normalizeForEditor(Element root) {
+        for (Element el : root.getAllElements()) {
+            String style = el.attr("style");
+            if (style.isEmpty()) {
+                continue;
             }
-            if (v.endsWith("px")) {
-                return Double.parseDouble(v.substring(0, v.length() - 2).trim()) / 16.0;
+            Map<String, String> props = parseStyle(style);
+            if (props.isEmpty()) {
+                continue;
             }
-        } catch (NumberFormatException ignore) {
-            // 无法解析视为无缩进
+            // 行距 px/em/% → 无单位倍数（换算不了时保留原值）
+            String lh = props.get("line-height");
+            if (lh != null) {
+                String ratio = toLineHeightRatio(lh, props.get("font-size"));
+                if (ratio != null) {
+                    props.put("line-height", ratio);
+                }
+            }
+            // 块级元素：字体/字号下沉到内联 span（内联元素上编辑器本身就能解析，无需处理）
+            if (BLOCK_TAGS.contains(el.tagName()) && !el.childNodes().isEmpty()) {
+                String ff = props.remove("font-family");
+                String fs = props.remove("font-size");
+                if (ff != null || fs != null) {
+                    String spanStyle = (ff != null ? "font-family:" + ff + ";" : "")
+                            + (fs != null ? "font-size:" + fs + ";" : "");
+                    // 仅包裹文本与内联格式节点：图片等被 span 包住会被编辑器当作文本样式丢弃
+                    Element span = null;
+                    for (org.jsoup.nodes.Node child : new java.util.ArrayList<>(el.childNodes())) {
+                        if (isWrappableInline(child)) {
+                            if (span == null) {
+                                span = new Element("span").attr("style", spanStyle);
+                            }
+                            span.appendChild(child);
+                        } else if (span != null) {
+                            child.before(span);
+                            span = null;
+                        }
+                    }
+                    if (span != null) {
+                        el.appendChild(span);
+                    }
+                }
+            }
+            el.attr("style", buildStyle(props));
         }
-        return 0;
     }
 
-    private void absolutize(Element root, String tag, String attr) {
-        for (Element el : root.select(tag + "[" + attr + "]")) {
+    /** 可被字体 span 包裹的节点：文本或内联格式元素；图片/表格等被 span 包住会被编辑器丢弃 */
+    private boolean isWrappableInline(org.jsoup.nodes.Node node) {
+        if (node instanceof org.jsoup.nodes.TextNode) {
+            return true;
+        }
+        if (node instanceof Element) {
+            String tag = ((Element) node).tagName();
+            return !java.util.Set.of("img", "table", "video", "audio", "iframe", "object", "embed").contains(tag);
+        }
+        return false;
+    }
+
+    private Map<String, String> parseStyle(String style) {
+        Map<String, String> props = new LinkedHashMap<>();
+        for (String decl : style.split(";")) {
+            int colon = decl.indexOf(':');
+            if (colon > 0) {
+                props.put(decl.substring(0, colon).trim(), decl.substring(colon + 1).trim());
+            }
+        }
+        return props;
+    }
+
+    private String buildStyle(Map<String, String> props) {
+        StringBuilder sb = new StringBuilder();
+        props.forEach((k, v) -> sb.append(k).append(':').append(v).append(';'));
+        return sb.toString();
+    }
+
+    /** 行距换算成无单位倍数：px 需结合同元素字号，em 直接去单位，% 除以 100；无法换算返回 null */
+    private String toLineHeightRatio(String lh, String fontSize) {
+        try {
+            if (lh.endsWith("px")) {
+                if (fontSize == null || !fontSize.endsWith("px")) {
+                    return null;
+                }
+                double lhPx = Double.parseDouble(lh.substring(0, lh.length() - 2).trim());
+                double fsPx = Double.parseDouble(fontSize.substring(0, fontSize.length() - 2).trim());
+                return fsPx > 0 ? formatRatio(lhPx / fsPx) : null;
+            }
+            if (lh.endsWith("em")) {
+                return formatRatio(Double.parseDouble(lh.substring(0, lh.length() - 2).trim()));
+            }
+            if (lh.endsWith("%")) {
+                return formatRatio(Double.parseDouble(lh.substring(0, lh.length() - 1).trim()) / 100);
+            }
+        } catch (NumberFormatException ignore) {
+            return null;
+        }
+        return null;
+    }
+
+    private String formatRatio(double r) {
+        return java.math.BigDecimal.valueOf(r).setScale(2, java.math.RoundingMode.HALF_UP)
+                .stripTrailingZeros().toPlainString();
+    }
+
+    private void absolutize(Element root, String tag, String attr) {        for (Element el : root.select(tag + "[" + attr + "]")) {
             String abs = el.absUrl(attr);
             if (!abs.isEmpty()) {
                 el.attr(attr, abs);

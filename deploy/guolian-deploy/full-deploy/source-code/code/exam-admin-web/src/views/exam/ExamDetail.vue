@@ -10,18 +10,18 @@
         <el-button v-if="detail.status === 'NOT_STARTED'" type="success" @click="onStatusAction('START')">开始</el-button>
         <el-button v-if="detail.status === 'IN_PROGRESS'" type="warning" @click="onStatusAction('END')">结束</el-button>
         <el-button v-if="detail.status === 'NOT_STARTED'" type="warning" @click="onStatusAction('CANCEL')">取消</el-button>
-        <el-button v-if="detail.status === 'IN_PROGRESS'" type="primary" @click="onExtend">延长考试</el-button>
+        <el-button v-if="detail.status === 'IN_PROGRESS'" type="primary" @click="onExtend">延长测试</el-button>
         <el-button v-if="detail.status === 'IN_PROGRESS'" type="danger" @click="openForceSubmit">强制收卷</el-button>
         <el-button type="primary" plain @click="notifyDialog = true">推送通知</el-button>
         <el-button v-if="detail.status === 'ENDED'" type="primary" plain @click="openRetake">补考设置</el-button>
         <el-button v-if="detail.status === 'ENDED'" type="success" @click="onPublish">发布成绩</el-button>
       </div>
       <el-descriptions :column="3" border>
-        <el-descriptions-item label="考试名称">{{ detail.examName }}</el-descriptions-item>
+        <el-descriptions-item label="测试名称">{{ detail.examName }}</el-descriptions-item>
         <el-descriptions-item label="关联试卷">{{ detail.paperName }}</el-descriptions-item>
-        <el-descriptions-item label="考试时长">{{ detail.durationMin != null ? detail.durationMin + ' 分钟' : '-' }}</el-descriptions-item>
-        <el-descriptions-item label="开考时间">{{ detail.startTime }}</el-descriptions-item>
-        <el-descriptions-item label="结束时间">{{ detail.endTime }}</el-descriptions-item>
+        <el-descriptions-item label="测试时长">{{ detail.durationMin != null ? detail.durationMin + ' 分钟' : '-' }}</el-descriptions-item>
+        <el-descriptions-item label="开考时间">{{ fmtTime(detail.startTime) }}</el-descriptions-item>
+        <el-descriptions-item label="结束时间">{{ fmtTime(detail.endTime) }}</el-descriptions-item>
         <el-descriptions-item label="名单数 / 实考">{{ detail.candidateCount ?? 0 }} / {{ detail.attendedCount ?? 0 }}</el-descriptions-item>
         <el-descriptions-item label="迟到时限">{{ detail.lateEnterMin ? detail.lateEnterMin + ' 分钟' : '不允许迟到' }}</el-descriptions-item>
         <el-descriptions-item label="切屏上限">{{ detail.switchScreenLimit != null ? detail.switchScreenLimit + ' 次' : '系统默认' }}</el-descriptions-item>
@@ -30,7 +30,7 @@
         </el-descriptions-item>
         <el-descriptions-item label="题目乱序">{{ detail.shuffleQuestion === false ? '关闭' : '开启' }}</el-descriptions-item>
         <el-descriptions-item label="选项乱序">{{ detail.shuffleOption === false ? '关闭' : '开启' }}</el-descriptions-item>
-        <el-descriptions-item label="考试须知">{{ detail.notice || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="测试须知">{{ detail.notice || '-' }}</el-descriptions-item>
       </el-descriptions>
     </div>
 
@@ -81,11 +81,11 @@
           </div>
         </el-tab-pane>
 
-        <!-- 考试监控 -->
-        <el-tab-pane label="考试监控" name="monitor">
+        <!-- 测试监控 -->
+        <el-tab-pane label="测试监控" name="monitor">
           <div class="toolbar">
             <el-link type="danger" underline="never" @click="$router.push(`/sys/logs/exam-abnormal?examId=${examId}`)">
-              切屏异常提示：查看本场考试异常日志
+              切屏异常提示：查看本场测试异常日志
             </el-link>
             <div class="spacer" />
             <el-button type="primary" plain :loading="monitorLoading" @click="loadMonitor">刷新</el-button>
@@ -106,7 +106,7 @@
         <!-- 成绩发布信息 -->
         <el-tab-pane label="成绩发布信息" name="publish">
           <template v-if="detail.status === 'SCORED_PUBLISHED'">
-            <el-alert type="success" :closable="false" title="本场考试成绩已发布" style="margin-bottom: 16px" />
+            <el-alert type="success" :closable="false" title="本场测试成绩已发布" style="margin-bottom: 16px" />
             <el-descriptions :column="3" border>
               <el-descriptions-item label="发布人数">{{ publishInfo.publishedCount ?? '-' }}</el-descriptions-item>
               <el-descriptions-item label="平均分">{{ publishInfo.avgScore ?? detail.avgScore ?? '-' }}</el-descriptions-item>
@@ -205,7 +205,7 @@
     </el-dialog>
 
     <!-- 推送通知 -->
-    <el-dialog v-model="notifyDialog" title="推送考试通知" width="560px" @open="loadNotifyCandidates">
+    <el-dialog v-model="notifyDialog" title="推送测试通知" width="560px" @open="loadNotifyCandidates">
       <el-alert
         v-if="!notifyCandidates.length"
         type="warning"
@@ -275,6 +275,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { examApi, markApi, orgApi, statApi, userApi } from '../../api'
 import { EXAM_STATUS, SHEET_STATUS } from '../../utils/dict'
 import { pct } from '../../utils/download'
+import { fmtTime } from '../../utils/format'
 
 const route = useRoute()
 const router = useRouter()
@@ -296,9 +297,9 @@ async function loadDetail() {
 }
 
 const STATUS_ACTION_TIPS = {
-  START: { title: '开始考试', msg: '确认提前开考？考生将可进入本场考试。' },
-  END: { title: '结束考试', msg: '确认提前结束本场考试？将强制收取未交卷答卷。' },
-  CANCEL: { title: '取消考试', msg: '确认取消本场考试？取消后不可恢复。' }
+  START: { title: '开始测试', msg: '确认提前开考？考生将可进入本场测试。' },
+  END: { title: '结束测试', msg: '确认提前结束本场测试？将强制收取未交卷答卷。' },
+  CANCEL: { title: '取消测试', msg: '确认取消本场测试？取消后不可恢复。' }
 }
 
 async function onStatusAction(action) {
@@ -311,7 +312,7 @@ async function onStatusAction(action) {
 }
 
 async function onExtend() {
-  const { value } = await ElMessageBox.prompt('请输入延长时间（分钟），进行中场次的窗口结束时间将顺延：', '延长考试', {
+  const { value } = await ElMessageBox.prompt('请输入延长时间（分钟），进行中场次的窗口结束时间将顺延：', '延长测试', {
     inputPattern: /^[1-9]\d*$/,
     inputErrorMessage: '请输入正整数分钟数'
   })
@@ -321,7 +322,7 @@ async function onExtend() {
 }
 
 async function onPublish() {
-  await ElMessageBox.confirm('确认发布本场考试成绩？发布后考生可查询成绩。', '发布成绩', { type: 'warning' })
+  await ElMessageBox.confirm('确认发布本场测试成绩？发布后考生可查询成绩。', '发布成绩', { type: 'warning' })
   const data = await markApi.publish(examId.value)
   publishInfo.value = data || {}
   ElMessage.success(`发布成功：发布 ${data.publishedCount ?? '-'} 人，平均分 ${data.avgScore ?? '-'}，及格率 ${pct(data.passRate)}`)
@@ -360,7 +361,7 @@ function onCandReset() {
 
 async function onRemoveCandidates() {
   const userIds = candSelection.value.map((r) => r.userId)
-  await ElMessageBox.confirm(`确认剔除所选 ${userIds.length} 名考生？已进入考试的考生不可剔除。`, '剔除考生', { type: 'warning' })
+  await ElMessageBox.confirm(`确认剔除所选 ${userIds.length} 名考生？已进入测试的考生不可剔除。`, '剔除考生', { type: 'warning' })
   const data = await examApi.removeCandidates(examId.value, userIds)
   const skippedTip = data.skipped?.length ? `，${data.skipped.length} 人被跳过` : ''
   ElMessage.success(`已剔除 ${data.removedCount ?? 0} 人${skippedTip}`)
@@ -589,7 +590,7 @@ async function onRetake() {
   }
 }
 
-// ---------- 考试监控 ----------
+// ---------- 测试监控 ----------
 const monitorLoading = ref(false)
 const overview = ref({})
 let monitorTimer = null

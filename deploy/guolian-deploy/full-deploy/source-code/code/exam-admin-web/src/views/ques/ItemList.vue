@@ -9,6 +9,7 @@
         </div>
         <el-tree
           ref="treeRef"
+          :key="treeKey"
           :data="bankTree"
           :props="{ label: 'bankName', children: 'children' }"
           node-key="bankId"
@@ -18,17 +19,18 @@
           @node-click="onBankClick"
         >
           <template #default="{ data }">
-            <span class="custom-tree-node">
-              <span>{{ data.bankName }}（{{ data.itemCount }}）</span>
-              <span class="tree-node-ops">
-                <el-button link type="primary" size="small" @click.stop="openBankDialog(null, data)">新增子分类</el-button>
-                <el-button link type="primary" size="small" @click.stop="openBankDialog(data)">编辑</el-button>
-                <el-button link type="danger" size="small" @click.stop="onRemoveBank(data)">删除</el-button>
-              </span>
+            <span class="custom-tree-node" @contextmenu.prevent.stop="openCtxMenu(data, $event)">
+              <span class="node-label" :title="data.bankName + '（' + data.itemCount + '）'">{{ data.bankName }}（{{ data.itemCount }}）</span>
             </span>
           </template>
         </el-tree>
         <el-empty v-if="!bankTree.length" description="暂无分类" :image-size="60" />
+        <!-- 分类节点右键菜单（fixed 定位，跟随鼠标） -->
+        <div v-show="ctxMenu.visible" class="ctx-menu" :style="{ left: ctxMenu.x + 'px', top: ctxMenu.y + 'px' }">
+          <div class="ctx-item" @click="onCtxAddChild">新增子分类</div>
+          <div class="ctx-item" @click="onCtxEdit">编辑</div>
+          <div class="ctx-item danger" @click="onCtxRemove">删除</div>
+        </div>
       </div>
 
       <!-- 右侧：题目列表 -->
@@ -43,6 +45,10 @@
           </el-select>
           <el-select v-model="query.status" placeholder="状态" clearable style="width: 120px" @change="onSearch">
             <el-option v-for="(v, k) in QUES_STATUS" :key="k" :label="v.label" :value="k" />
+          </el-select>
+          <el-select v-model="query.genType" placeholder="来源" clearable style="width: 120px" @change="onSearch">
+            <el-option label="AI生成" value="AI" />
+            <el-option label="人工录入" value="MANUAL" />
           </el-select>
           <el-input v-model="query.keyword" placeholder="题干关键词" clearable style="width: 200px" @keyup.enter="onSearch" />
           <el-input v-model="query.tag" placeholder="标签" clearable style="width: 130px" @keyup.enter="onSearch" />
@@ -78,9 +84,14 @@
               <el-tag :type="QUES_STATUS[row.status]?.type">{{ QUES_STATUS[row.status]?.label || row.status }}</el-tag>
             </template>
           </el-table-column>
+          <el-table-column label="来源" width="90" align="center">
+            <template #default="{ row }">
+              <el-tag :type="row.genType === 'AI' ? 'warning' : 'info'" size="small">{{ row.genType === 'AI' ? 'AI生成' : '人工录入' }}</el-tag>
+            </template>
+          </el-table-column>
           <el-table-column prop="useCount" label="使用次数" width="90" align="center" />
           <el-table-column label="正确率" width="90" align="center">
-            <template #default="{ row }">{{ row.correctRate == null ? '-' : (row.correctRate * 100).toFixed(1) + '%' }}</template>
+            <template #default="{ row }">{{ row.correctRate == null ? '-' : Number(row.correctRate).toFixed(1) + '%' }}</template>
           </el-table-column>
           <el-table-column prop="createdTime" label="创建时间" width="160" align="center" />
           <el-table-column label="操作" width="200" align="center" fixed="right">
@@ -89,11 +100,7 @@
               <el-button v-if="row.status === 'PENDING_AUDIT'" link type="warning" size="small" @click="openAuditDialog(row)">审核</el-button>
               <el-button v-if="row.status === 'ENABLED'" link type="warning" size="small" @click="onDisable(row)">停用</el-button>
               <el-button v-if="row.status === 'DISABLED'" link type="success" size="small" @click="onEnable(row)">启用</el-button>
-              <el-popconfirm title="确定删除该题目吗？（默认停用）" @confirm="onRemove(row, false)">
-                <template #reference>
-                  <el-button link type="danger" size="small">删除</el-button>
-                </template>
-              </el-popconfirm>
+              <el-button link type="danger" size="small" @click="onRemoveClick(row)">删除</el-button>
             </template>
           </el-table-column>
         </el-table>
@@ -219,7 +226,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { quesApi } from '../../api'
@@ -232,9 +239,21 @@ const router = useRouter()
 const treeRef = ref()
 const bankTree = ref([])
 const currentBankId = ref(null)
+// 增删改后重挂树组件：保持 default-expand-all 展开态（数据替换会导致新节点折叠）
+const treeKey = ref(0)
 
 const loadBankTree = async () => {
   bankTree.value = (await quesApi.bankTree()) || []
+}
+
+// 分类树局部刷新：重新拉取 + 重挂组件保持展开 + 恢复当前选中
+const refreshBankTree = async () => {
+  await loadBankTree()
+  treeKey.value++
+  await nextTick()
+  if (currentBankId.value) {
+    treeRef.value?.setCurrentKey(currentBankId.value)
+  }
 }
 
 const onBankClick = (data) => {
@@ -267,7 +286,9 @@ const onSaveBank = async () => {
   bankDialog.loading = true
   try {
     if (bankDialog.isEdit) {
+      // 后端校验 parentId 必填（编辑时实际忽略，仅过校验；根节点传 0）
       await quesApi.updateBank(bankDialog.form.bankId, {
+        parentId: bankDialog.form.parentId ?? 0,
         bankName: bankDialog.form.bankName,
         sortNo: bankDialog.form.sortNo
       })
@@ -280,7 +301,7 @@ const onSaveBank = async () => {
     }
     ElMessage.success('保存成功')
     bankDialog.visible = false
-    loadBankTree()
+    await refreshBankTree()
   } finally {
     bankDialog.loading = false
   }
@@ -295,8 +316,51 @@ const onRemoveBank = async (data) => {
   await quesApi.removeBank(data.bankId)
   ElMessage.success('删除成功')
   if (currentBankId.value === data.bankId) currentBankId.value = null
-  loadBankTree()
+  await refreshBankTree()
   loadList()
+}
+
+// 分类节点右键菜单（替代原 hover 操作条）：右键弹出，点击任意处收起；
+// 鼠标离开源节点行、移到其他行上时自动收起（悬停在菜单本身不收起）
+const ctxMenu = reactive({ visible: false, x: 0, y: 0, data: null, sourceEl: null })
+
+const openCtxMenu = (data, e) => {
+  const w = 140
+  const h = 110
+  ctxMenu.data = data
+  ctxMenu.x = Math.min(e.clientX, window.innerWidth - w - 8)
+  ctxMenu.y = Math.min(e.clientY, window.innerHeight - h - 8)
+  ctxMenu.sourceEl = e.currentTarget ? e.currentTarget.closest('.el-tree-node') : null
+  ctxMenu.visible = true
+}
+
+const closeCtxMenu = () => {
+  ctxMenu.visible = false
+}
+
+// 菜单打开期间：鼠标移到其他树节点行 → 自动收起
+const onDocMouseMove = (e) => {
+  if (!ctxMenu.visible) return
+  const t = e.target
+  if (!(t instanceof Element)) return
+  if (t.closest('.ctx-menu')) return
+  const row = t.closest('.el-tree-node')
+  if (row && ctxMenu.sourceEl && row !== ctxMenu.sourceEl) closeCtxMenu()
+}
+
+const onCtxAddChild = () => {
+  openBankDialog(null, ctxMenu.data)
+  closeCtxMenu()
+}
+
+const onCtxEdit = () => {
+  openBankDialog(ctxMenu.data)
+  closeCtxMenu()
+}
+
+const onCtxRemove = () => {
+  onRemoveBank(ctxMenu.data)
+  closeCtxMenu()
 }
 
 // ---------- 题目列表 ----------
@@ -309,6 +373,7 @@ const query = reactive({
   quesType: '',
   difficulty: '',
   status: '',
+  genType: '',
   keyword: '',
   tag: ''
 })
@@ -323,6 +388,7 @@ const loadList = async () => {
       quesType: query.quesType || undefined,
       difficulty: query.difficulty || undefined,
       status: query.status || undefined,
+      genType: query.genType || undefined,
       keyword: query.keyword || undefined,
       tag: query.tag || undefined
     })
@@ -342,6 +408,7 @@ const onReset = () => {
   query.quesType = ''
   query.difficulty = ''
   query.status = ''
+  query.genType = ''
   query.keyword = ''
   query.tag = ''
   currentBankId.value = null
@@ -386,10 +453,39 @@ const onEnable = async (row) => {
 }
 
 // ---------- 删除 ----------
-const onRemove = async (row, hard) => {
-  await quesApi.remove(row.itemId, hard)
-  ElMessage.success(hard ? '已物理删除' : '已停用')
-  loadList()
+// 删除优先物理删除（不可恢复）；已被试卷引用或已使用的题目（40004）不可删除，
+// 询问后降级为停用（软删除，保留历史数据可追溯）
+const onRemoveClick = async (row) => {
+  try {
+    await ElMessageBox.confirm(`确定删除题目「${row.stemText}」吗？删除后不可恢复。`, '删除确认', {
+      type: 'warning',
+      confirmButtonText: '删除',
+      cancelButtonText: '取消'
+    })
+  } catch (e) {
+    return
+  }
+  try {
+    await quesApi.remove(row.itemId, true, { __silent: true })
+    ElMessage.success('已删除')
+    loadList()
+  } catch (e) {
+    if (e && e.code === 40004) {
+      try {
+        await ElMessageBox.confirm('该题目已被试卷引用或已使用，不可删除。是否改为停用？', '无法删除', {
+          type: 'warning',
+          confirmButtonText: '改为停用',
+          cancelButtonText: '取消'
+        })
+      } catch (ignored) {
+        return
+      }
+      await quesApi.remove(row.itemId, false, { __silent: true })
+      ElMessage.success('已停用')
+      loadList()
+    }
+    // 其他错误（权限/网络等）已由拦截器提示
+  }
 }
 
 // ---------- 批量导入 ----------
@@ -444,6 +540,14 @@ const onImport = async () => {
 onMounted(() => {
   loadBankTree()
   loadList()
+  document.addEventListener('click', closeCtxMenu)
+  document.addEventListener('contextmenu', closeCtxMenu)
+  document.addEventListener('mousemove', onDocMouseMove)
+})
+onBeforeUnmount(() => {
+  document.removeEventListener('click', closeCtxMenu)
+  document.removeEventListener('contextmenu', closeCtxMenu)
+  document.removeEventListener('mousemove', onDocMouseMove)
 })
 </script>
 
@@ -473,14 +577,61 @@ onMounted(() => {
 .custom-tree-node {
   flex: 1;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
+  position: relative;
+  flex-wrap: wrap;
+}
+.node-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: normal;
+  word-break: break-all;
+  line-height: 1.4;
   padding-right: 8px;
 }
-.tree-node-ops {
-  display: none;
+.custom-tree-node:hover {
+  background: transparent;
 }
-.custom-tree-node:hover .tree-node-ops {
-  display: inline-flex;
+/* 分类节点右键菜单 */
+.ctx-menu {
+  position: fixed;
+  z-index: 3000;
+  min-width: 128px;
+  background: #fff;
+  border: 1px solid var(--el-border-color-light, #e4e7ed);
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  padding: 4px 0;
+}
+.ctx-item {
+  padding: 8px 16px;
+  font-size: 13px;
+  color: var(--el-text-color-regular, #606266);
+  cursor: pointer;
+  line-height: 1.4;
+}
+.ctx-item:hover {
+  background: var(--el-fill-color-light, #f5f7fa);
+  color: var(--el-color-primary, #409eff);
+}
+.ctx-item.danger:hover {
+  color: var(--el-color-danger, #f56c6c);
+}
+/* 分类名换行后行高自适应：el-tree 节点默认 26px 固定高，多行文本会与上下节点重叠 */
+.bank-panel :deep(.el-tree-node__content) {
+  height: auto;
+  min-height: 26px;
+  align-items: flex-start;
+  padding-top: 3px;
+  padding-bottom: 3px;
+}
+/* 展开箭头与第一行文字对齐（默认垂直居中对多行文本不适用） */
+.bank-panel :deep(.el-tree-node__expand-icon) {
+  margin-top: 3px;
+  flex-shrink: 0;
+}
+.bank-panel :deep(.el-tree-node) {
+  white-space: normal;
 }
 </style>

@@ -24,6 +24,14 @@
         v-html="detail.contentHtml || '<p>暂无内容</p>'"
       ></div>
 
+      <!-- 文档类 DOCX：后端解析 word 结构输出 HTML，滚动阅读、进度按滚动位置自动记录 -->
+      <div v-else-if="detail.materialType === 'DOC' && docHtml" class="docx-wrap">
+        <div class="doc-toolbar">
+          <span class="doc-page-text">共 {{ totalPages }} 页 · 上下滚动阅读，进度自动记录</span>
+        </div>
+        <div class="docx-html" v-html="docHtml"></div>
+      </div>
+
       <!-- 文档类：PDF 页图预览（后端逐页转 JPEG，前端只加载图片，避免下载工具拦截 PDF 流） -->
       <div v-else-if="detail.materialType === 'DOC'" class="doc-wrap">
         <div class="doc-toolbar">
@@ -106,7 +114,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, reactive } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, reactive, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { showToast, showLoadingToast, closeToast } from 'vant'
 import { getMaterialDetail, getMaterialFile, getLearnRecord } from '../../api/learn'
@@ -138,8 +146,11 @@ const readPageSet = reactive(new Set())
 const pageRendering = ref(false)
 const pdfError = ref(false)
 const pageImageUrl = ref('')
-// 页图默认放大到 185%：整页 A4 缩到屏宽时文字仅约 8px，放大后与在线图文(14~16px)字号一致，超出部分左右滑动查看
-const widthPct = ref(185)
+// DOCX 滚动阅读：后端解析 word 结构输出 HTML，按滚动虚拟页码记录进度
+const docHtml = ref('')
+const docPageNo = ref(1)
+// 页图默认 100%（整页适配屏宽）；用户可通过缩放按钮/双指捏合放大，最大 300%
+const widthPct = ref(100)
 
 function zoomWidth(delta) {
   widthPct.value = Math.min(300, Math.max(100, widthPct.value + delta))
@@ -213,6 +224,39 @@ function gotoPage(p) {
   loadPageImage(p)
 }
 
+// ---------- DOCX 滚动阅读：后端解析 word 结构输出 HTML，进度按滚动虚拟页码记录 ----------
+async function loadDocxHtml() {
+  try {
+    const resp = await fetch(`/api/v1/app/learn/materials/${materialId}/doc-html`, {
+      headers: { Authorization: `Bearer ${auth.accessToken}` }
+    })
+    if (!resp.ok) throw new Error(`文档解析失败(${resp.status})`)
+    const tp = parseInt(resp.headers.get('X-Total-Pages') || '0', 10)
+    if (tp > 0) totalPages.value = tp
+    docHtml.value = await resp.text()
+    // 断点续学：滚动到上次阅读位置（一屏记一页）
+    await nextTick()
+    const last = (detail.value.myRecord && detail.value.myRecord.lastPosition) || 0
+    if (last > 1 && totalPages.value > 1) {
+      window.scrollTo(0, (last - 1) * window.innerHeight)
+    }
+    onDocScroll()
+  } catch (e) {
+    pdfError.value = true
+  }
+}
+
+function onDocScroll() {
+  if (!docHtml.value || !totalPages.value) return
+  const vh = Math.max(1, window.innerHeight)
+  const p = Math.min(totalPages.value, Math.floor((window.scrollY || window.pageYOffset || 0) / vh) + 1)
+  if (p > docPageNo.value) {
+    docPageNo.value = p
+    hb.markPageRead(p)
+    localDocPct.value = Math.max(localDocPct.value, (p / totalPages.value) * 100)
+  }
+}
+
 // ---------- 全屏预览：多页左右滑动翻页 + 双指缩放 + 底部翻页按钮 ----------
 const showPreview = ref(false)
 const previewImages = ref([])
@@ -256,13 +300,35 @@ function previewNext() {
 // 视频状态
 const videoRef = ref(null)
 const videoPlaying = ref(false)
+const videoEnded = ref(false)
 let resumePosition = 0
 
 const hb = useLearnHeartbeat(materialId)
 
+// 视频本地进度：实际观看时长(服务端有效时长 + 未上报秒数) / 视频实际时长，每 5s 刷新
+const localPct = ref(0)
+// DOCX 滚动本地进度：已滚动虚拟页码 / 总页数
+const localDocPct = ref(0)
+function refreshLocalProgress() {
+  if (detail.value.materialType !== 'VIDEO') return
+  const v = videoRef.value
+  if (!v || !v.duration) return
+  const watched = (hb.effectiveSec.value || 0) + hb.pendingDeltaSec()
+  localPct.value = Math.min(100, (watched / v.duration) * 100)
+}
+const pctTimer = setInterval(refreshLocalProgress, 5000)
+
 const displayProgress = computed(() => {
-  const pct = hb.progressPct.value || (detail.value.myRecord && detail.value.myRecord.progressPct) || 0
-  return Math.min(100, Math.round(pct * 100))
+  // 视频播放结束直接显示 100%
+  if (videoEnded.value) return 100
+  const pct = Math.max(
+    Number(hb.progressPct.value) || 0,
+    localPct.value,
+    localDocPct.value,
+    (detail.value.myRecord && detail.value.myRecord.progressPct) || 0
+  )
+  // 后端 progressPct 口径为 0~100，直接取整，不得再乘 100
+  return Math.min(100, Math.round(pct))
 })
 
 function onBack() {
@@ -280,13 +346,20 @@ function onVideoReady() {
 
 function onVideoEnded() {
   videoPlaying.value = false
+  videoEnded.value = true
+  // 补发一次心跳，把最后一段有效时长和断点落库（不停止周期心跳，重播仍可继续计时）
+  hb.reportNow()
 }
 
 async function init() {
   try {
     const d = await getMaterialDetail(materialId)
-    detail.value = d
     const rec = d.myRecord || {}
+    // 断点续看：必须先拿到续看位置再渲染 <video>，否则 loadedmetadata 可能先于赋值触发，导致无法恢复
+    if (d.materialType === 'VIDEO') {
+      resumePosition = rec.lastPosition || 0
+    }
+    detail.value = d
     myStatus.value = rec.status || ''
     hb.progressPct.value = rec.progressPct || 0
     hb.effectiveSec.value = rec.effectiveSec || 0
@@ -303,17 +376,33 @@ async function init() {
     }
 
     if (d.materialType === 'DOC') {
-      ;(rec.readPages || []).forEach((p) => readPageSet.add(p))
-      // PDF 页图预览：总页数取资料元数据，实际以页图接口返回为准
-      totalPages.value = Math.max(1, d.pageCount || 1)
-      // 断点续学：恢复最后阅读页码
-      const last = rec.lastPosition || 0
-      gotoPage(last >= 1 && last <= totalPages.value ? last : 1)
-      hb.setPositionGetter(() => ({ pageNo: currentPage.value }))
+      // 按文件实际扩展名选择预览方式：docx 走 HTML 滚动阅读，pdf 走页图翻页
+      let ft = ''
+      try {
+        const f = await getMaterialFile(materialId)
+        fileUrl.value = f.fileUrl
+        ft = (f.fileType || '').toLowerCase()
+      } catch (e) {
+        // 文件地址获取失败时按 PDF 页图流程兜底（会走错误提示）
+      }
+      if (ft === 'docx') {
+        await loadDocxHtml()
+        hb.setPositionGetter(() => ({ pageNo: docPageNo.value }))
+        window.addEventListener('scroll', onDocScroll, { passive: true })
+      } else {
+        ;(rec.readPages || []).forEach((p) => readPageSet.add(p))
+        // PDF 页图预览：总页数取资料元数据，实际以页图接口返回为准
+        totalPages.value = Math.max(1, d.pageCount || 1)
+        // 断点续学：恢复最后阅读页码
+        const last = rec.lastPosition || 0
+        gotoPage(last >= 1 && last <= totalPages.value ? last : 1)
+        hb.setPositionGetter(() => ({ pageNo: currentPage.value }))
+      }
     } else if (d.materialType === 'VIDEO') {
-      resumePosition = rec.lastPosition || 0
       hb.setPositionGetter(() => ({
-        positionSec: videoRef.value ? Math.floor(videoRef.value.currentTime) : undefined
+        positionSec: videoRef.value ? Math.floor(videoRef.value.currentTime) : undefined,
+        // 视频实际时长作为进度分母上报，服务端优先于资料标称时长
+        durationSec: videoRef.value && videoRef.value.duration ? Math.floor(videoRef.value.duration) : undefined
       }))
       // 视频仅播放中计有效时长
       hb.setActiveChecker(() => videoPlaying.value)
@@ -343,6 +432,8 @@ async function init() {
 onMounted(init)
 
 onBeforeUnmount(async () => {
+  clearInterval(pctTimer)
+  window.removeEventListener('scroll', onDocScroll)
   // 离开页面前补发一次心跳，尽量保留进度
   await hb.flush()
   hb.stop()
@@ -369,6 +460,31 @@ onBeforeUnmount(async () => {
   background: #fff;
   margin-top: 8px;
   padding-bottom: 12px;
+}
+
+/* DOCX 滚动阅读：正文白底限宽，模拟纸张排版 */
+.docx-wrap {
+  background: #fff;
+  margin-top: 8px;
+  padding-bottom: 12px;
+}
+
+.docx-html {
+  padding: 4px 16px 16px;
+  font-size: 16px;
+  line-height: 1.9;
+  color: #333;
+  word-break: break-word;
+  background: #fff;
+}
+
+.docx-html :deep(img) {
+  max-width: 100%;
+}
+
+.docx-html :deep(.docx-page-break) {
+  border-top: 2px dashed #c0c4cc;
+  margin: 16px 0;
 }
 
 .doc-toolbar {

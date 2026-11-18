@@ -10,8 +10,10 @@ import { uuid } from '@/utils'
  *
  * options:
  *  - isActive(): 额外活跃条件（视频播放中才计时），可省略
- *  - getPayload(): 返回 { positionSec?, pageNo?, readPages? }，readPages 为本次新增已读页码
+ *  - getPayload(): 返回 { positionSec?, durationSec?, pageNo?, readPages? }，readPages 为本次新增已读页码
  *  - onUpdate(data): 心跳响应（progressPct/effectiveSec/status/serverTime）
+ *
+ * 返回 pendingSec()：已计时但尚未上报的观看秒数，供页面在两次心跳之间本地刷新进度百分比
  */
 export function useLearnHeartbeat(materialId, options = {}) {
   const INTERVAL_SEC = 15
@@ -88,10 +90,15 @@ export function useLearnHeartbeat(materialId, options = {}) {
     window.removeEventListener('beforeunload', flush)
   }
 
+  // 已计时但尚未上报的观看秒数（accMs 每秒 tick 累计一次，误差 <1s）
+  function pendingSec() {
+    return Math.floor(accMs / 1000)
+  }
+
   onBeforeUnmount(() => {
     flush()
     stop()
   })
 
-  return { flush, stop }
+  return { flush, stop, pendingSec }
 }

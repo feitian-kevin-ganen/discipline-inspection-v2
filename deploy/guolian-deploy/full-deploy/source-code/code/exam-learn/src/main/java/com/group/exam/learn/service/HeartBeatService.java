@@ -26,7 +26,9 @@ import java.util.Map;
  * - 一人一份资料一条 t_learn_record，不存在则创建快照；
  * - progress/readPage/playPositionSec 单调只增，乱序/重复上报不后退；
  * - effective_duration_sec 累加客户端上报增量，单次增量封顶 learn.heartbeat.timeout(默认60)秒，防挂机刷时长；
- * - 完成判定：progress≥100 或（有标称 duration_sec 且 effective/duration ≥ learn.completeThreshold(默认0.9)）
+ * - 视频进度口径：实际累计观看时长(effective_duration_sec) / 视频实际时长(客户端上报 durationSec，
+ *   未上报时退回资料标称 duration_sec)；不再按播放位置计算，拖动进度条不会推高进度；
+ * - 完成判定：progress≥100 或（有时长且 effective/duration ≥ learn.completeThreshold(默认0.9)）
  *   → finish_status=2 + finish_time，并回刷涉及本人的 t_learn_task_user。
  */
 @Service
@@ -82,8 +84,8 @@ public class HeartBeatService {
                     record.getReadPage() == null ? 0 : record.getReadPage(), req.getPageNo()));
         }
 
-        // 进度单调推进：视频按最大播放位置/标称时长，文档按最后页码/页数
-        BigDecimal computed = computeProgress(m, record);
+        // 进度单调推进：视频按 累计有效观看时长/视频实际时长，文档按最后页码/页数
+        BigDecimal computed = computeProgress(m, record, req.getDurationSec());
         BigDecimal current = LearnRecordService.progressOf(record);
         if (computed.compareTo(current) > 0) {
             record.setProgress(computed);
@@ -100,13 +102,14 @@ public class HeartBeatService {
         record.setLastLearnTime(now);
         record.setUpdateBy(user.getUserId());
 
-        // 完成判定：进度满 或 有效时长达标称时长阈值
+        // 完成判定：进度满 或 有效观看时长达到视频实际时长阈值
         boolean justFinished = false;
         if (record.getFinishStatus() != 2) {
             boolean progressDone = record.getProgress().compareTo(BigDecimal.valueOf(100)) >= 0;
             double threshold = sysConfigService.getDouble("learn.completeThreshold", 0.9);
-            boolean durationDone = m.getDurationSec() != null && m.getDurationSec() > 0
-                    && record.getEffectiveDurationSec() >= m.getDurationSec() * threshold;
+            int duration = actualDurationSec(m, req.getDurationSec());
+            boolean durationDone = duration > 0
+                    && record.getEffectiveDurationSec() >= duration * threshold;
             if (progressDone || durationDone) {
                 record.setFinishStatus(2);
                 record.setFinishTime(now);
@@ -121,12 +124,21 @@ public class HeartBeatService {
         return resp(record, m);
     }
 
-    private BigDecimal computeProgress(LearnMaterial m, LearnRecord record) {
+    /** 视频实际时长：优先取客户端播放器上报值，未上报时退回资料标称时长；0 表示未知 */
+    private int actualDurationSec(LearnMaterial m, Integer reportedDurationSec) {
+        if (reportedDurationSec != null && reportedDurationSec > 0) {
+            return reportedDurationSec;
+        }
+        return m.getDurationSec() != null && m.getDurationSec() > 0 ? m.getDurationSec() : 0;
+    }
+
+    private BigDecimal computeProgress(LearnMaterial m, LearnRecord record, Integer reportedDurationSec) {
         BigDecimal computed = BigDecimal.ZERO;
         if (m.getFileType() != null && m.getFileType() == LearnMaterialService.FT_VIDEO) {
-            if (m.getDurationSec() != null && m.getDurationSec() > 0) {
-                int pos = Math.min(record.getPlayPositionSec(), m.getDurationSec());
-                computed = BigDecimal.valueOf(pos * 100.0 / m.getDurationSec());
+            int duration = actualDurationSec(m, reportedDurationSec);
+            if (duration > 0) {
+                int watched = Math.min(LearnRecordService.effectiveSecOf(record), duration);
+                computed = BigDecimal.valueOf(watched * 100.0 / duration);
             }
         } else if (m.getPageCount() != null && m.getPageCount() > 0) {
             int page = Math.min(record.getReadPage(), m.getPageCount());

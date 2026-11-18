@@ -16,7 +16,7 @@ const routes = [
     children: [
       { path: '', redirect: '/learn' },
       { path: 'learn', name: 'Learn', component: () => import('../views/learn/LearnHome.vue'), meta: { title: '学习' } },
-      { path: 'exam', name: 'Exam', component: () => import('../views/exam/ExamList.vue'), meta: { title: '考试' } },
+      { path: 'exam', name: 'Exam', component: () => import('../views/exam/ExamList.vue'), meta: { title: '测试' } },
       { path: 'practice', name: 'Practice', component: () => import('../views/practice/PracticeHome.vue'), meta: { title: '练习' } },
       { path: 'mine', name: 'Mine', component: () => import('../views/mine/MineHome.vue'), meta: { title: '我的' } }
     ]
@@ -55,7 +55,7 @@ const routes = [
     path: '/exam/notice/:examId',
     name: 'ExamNotice',
     component: () => import('../views/exam/ExamNotice.vue'),
-    meta: { title: '考试须知', requiresAuth: true }
+    meta: { title: '测试须知', requiresAuth: true }
   },
   {
     path: '/exam/answer/:examId',
@@ -67,7 +67,7 @@ const routes = [
     path: '/exam/result/:examId',
     name: 'ExamResult',
     component: () => import('../views/exam/ExamResult.vue'),
-    meta: { title: '考试结果', requiresAuth: true }
+    meta: { title: '测试结果', requiresAuth: true }
   },
   {
     path: '/mine/scores',
@@ -90,7 +90,7 @@ const router = createRouter({
 })
 
 router.beforeEach((to) => {
-  document.title = to.meta.title ? `${to.meta.title} - 纪检监察在线考试` : '纪检监察在线考试'
+  document.title = to.meta.title ? `${to.meta.title} - 纪检监察在线测试` : '纪检监察在线测试'
   const auth = useAuthStore()
   if (to.meta.requiresAuth && !auth.isLogin) {
     return { path: '/login', query: to.fullPath !== '/' ? { redirect: to.fullPath } : {} }

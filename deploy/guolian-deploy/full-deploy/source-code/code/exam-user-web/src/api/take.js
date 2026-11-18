@@ -1,9 +1,9 @@
 import request from './request'
 
-/** TAKE-01 待考/历史考试列表；silent 用于首页工作台等非强提示场景 */
+/** TAKE-01 待考/历史测试列表；silent 用于首页工作台等非强提示场景 */
 export const getMyExams = (params, config = {}) => request.get('/app/exams', { params, ...config })
 
-/** TAKE-02 进入考试（须知确认） */
+/** TAKE-02 进入测试（须知确认） */
 export const enterExam = (examId, data) => request.post(`/app/exams/${examId}/enter`, data)
 
 /** TAKE-03 服务端校时 */

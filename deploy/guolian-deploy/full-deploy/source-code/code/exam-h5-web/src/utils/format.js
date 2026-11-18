@@ -46,7 +46,7 @@ export const learnStatusColor = {
 
 export const sheetStatusName = {
   NOT_ENTERED: '未进入',
-  IN_EXAM: '考试中',
+  IN_EXAM: '测试中',
   SUBMITTED: '已交卷',
   FORCED: '强制收卷',
   ABSENT: '缺考'

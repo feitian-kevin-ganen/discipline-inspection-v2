@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xmlns:flowable="http://flowable.org/bpmn"
+             targetNamespace="http://exam.group.com/workflow">
+  <process id="ques_item_audit" name="题目审核" isExecutable="true">
+    <documentation>题目新增/修改后进入待审，管理员审核通过则启用；驳回退回草稿</documentation>
+    <startEvent id="startEvent" name="提交审核"/>
+    <sequenceFlow id="flow1" sourceRef="startEvent" targetRef="auditTask"/>
+    <userTask id="auditTask" name="题目审核"
+              flowable:candidateGroups="SUPER_ADMIN,HQ_ADMIN,L2_ADMIN,SUB_ADMIN"/>
+    <sequenceFlow id="flow2" sourceRef="auditTask" targetRef="endEvent"/>
+    <endEvent id="endEvent" name="审核结束"/>
+  </process>
+</definitions>

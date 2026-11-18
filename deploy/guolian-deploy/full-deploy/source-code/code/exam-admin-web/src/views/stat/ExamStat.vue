@@ -2,7 +2,7 @@
   <div class="page-container">
     <div class="page-card">
       <div class="toolbar">
-        <el-select v-model="examId" placeholder="请选择考试场次" filterable style="width: 280px" @change="handleExamChange">
+        <el-select v-model="examId" placeholder="请选择测试场次" filterable style="width: 280px" @change="handleExamChange">
           <el-option v-for="e in examOptions" :key="e.examId" :label="e.examName" :value="e.examId" />
         </el-select>
         <div class="spacer"></div>
@@ -189,7 +189,7 @@
           </el-tab-pane>
         </el-tabs>
       </template>
-      <el-empty v-else description="请先选择考试场次" />
+      <el-empty v-else description="请先选择测试场次" />
     </div>
   </div>
 </template>
@@ -408,7 +408,7 @@ function handleResize() {
 // ---------- 导出 ----------
 async function handleExport(exportType) {
   const names = { SUMMARY: '单位汇总表', DETAIL: '人员成绩明细表', QUESTION: '题目分析表' }
-  await downloadFile(`/admin/stat/exams/${examId.value}/export`, `考试统计-${names[exportType] || exportType}.xlsx`, { exportType })
+  await downloadFile(`/admin/stat/exams/${examId.value}/export`, `测试统计-${names[exportType] || exportType}.xlsx`, { exportType })
 }
 
 onMounted(() => {

@@ -1,6 +1,6 @@
 <template>
   <div class="page page-has-navbar">
-    <van-nav-bar title="考试结果" left-arrow @click-left="onBack" fixed placeholder />
+    <van-nav-bar title="测试结果" left-arrow @click-left="onBack" fixed placeholder />
 
     <!-- 交卷回执 -->
     <div v-if="submitResult" class="result-banner success">
@@ -53,7 +53,7 @@
             <div v-if="d.analysis" class="detail-analysis">解析：{{ d.analysis }}</div>
           </div>
         </template>
-        <van-notice-bar v-else-if="result.scorePublished" wrapable text="本场考试未开放答题解析。" />
+        <van-notice-bar v-else-if="result.scorePublished" wrapable text="本场测试未开放答题解析。" />
       </template>
     </template>
   </div>
@@ -74,7 +74,7 @@ const result = ref(null)
 const submitResult = ref(null)
 let pollTimer = null
 
-// 返回：交卷回执场景回考试列表；其余按来源回退（/mine/scores 或 /exam）；无历史直接打开时回我的成绩
+// 返回：交卷回执场景回测试列表；其余按来源回退（/mine/scores 或 /exam）；无历史直接打开时回我的成绩
 function onBack() {
   const back = window.history.state && window.history.state.back
   if (submitResult.value || (back && (back.includes('/exam/answer') || back.includes('/exam/notice')))) {

@@ -24,7 +24,7 @@
           <van-icon :name="iconOf(m.materialType)" class="task-material-icon" />
           <span class="task-material-title">{{ m.title }}</span>
           <van-progress
-            :percentage="Math.round((m.myProgressPct || 0) * 100)"
+            :percentage="Math.min(100, Math.round(Number(m.myProgressPct) || 0))"
             stroke-width="4"
             class="task-material-progress"
           />

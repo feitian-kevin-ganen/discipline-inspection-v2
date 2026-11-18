@@ -36,6 +36,7 @@
           <el-option label="正常" :value="1" />
           <el-option label="停用" :value="0" />
           <el-option label="锁定" :value="2" />
+          <el-option label="需改密" :value="3" />
         </el-select>
         <el-button type="primary" @click="onSearch">查询</el-button>
         <el-button @click="onReset">重置</el-button>
@@ -47,6 +48,7 @@
       <el-table v-loading="loading" :data="rows" border stripe>
         <el-table-column prop="name" label="姓名" min-width="90" />
         <el-table-column prop="jobNo" label="工号" min-width="100" />
+        <el-table-column prop="empId" label="国联员工ID" min-width="100" />
         <el-table-column prop="phone" label="手机号" min-width="120" />
         <el-table-column label="性别" width="70">
           <template #default="{ row }">{{ row.gender === 'M' ? '男' : row.gender === 'F' ? '女' : '-' }}</template>
@@ -65,8 +67,8 @@
             <el-tag :type="USER_STATUS[row.status]?.type" size="small">{{ USER_STATUS[row.status]?.label || row.status }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="lastLoginTime" label="最后登录" min-width="150">
-          <template #default="{ row }">{{ row.lastLoginTime || '-' }}</template>
+        <el-table-column label="最后登录" min-width="150">
+          <template #default="{ row }">{{ row.lastLoginTime ? row.lastLoginTime.replace('T', ' ').slice(0, 19) : '-' }}</template>
         </el-table-column>
         <el-table-column label="操作" width="200" fixed="right">
           <template #default="{ row }">
@@ -111,6 +113,9 @@
         </el-form-item>
         <el-form-item label="工号" prop="jobNo">
           <el-input v-model="userForm.jobNo" maxlength="30" placeholder="全局唯一" :disabled="isEdit" />
+        </el-form-item>
+        <el-form-item label="国联员工ID">
+          <el-input v-model="userForm.empId" maxlength="30" placeholder="国联APP员工ID，单点登录用，可空" />
         </el-form-item>
         <el-form-item label="手机号" prop="phone">
           <el-input v-model="userForm.phone" maxlength="11" placeholder="请输入手机号" />
@@ -322,6 +327,7 @@ const userForm = reactive({
   userId: null,
   name: '',
   jobNo: '',
+  empId: '',
   phone: '',
   gender: 'M',
   orgId: null,
@@ -345,6 +351,7 @@ function resetUserForm() {
     userId: null,
     name: '',
     jobNo: '',
+    empId: '',
     phone: '',
     gender: 'M',
     orgId: null,
@@ -367,6 +374,7 @@ function openEdit(row) {
     userId: row.userId,
     name: row.name,
     jobNo: row.jobNo,
+    empId: row.empId || '',
     phone: row.phone,
     gender: row.gender || 'M',
     orgId: row.orgId,
@@ -394,7 +402,8 @@ async function submitUser() {
       gender: userForm.gender,
       orgId: userForm.orgId,
       position: userForm.position,
-      roleCodes: userForm.roleCodes
+      roleCodes: userForm.roleCodes,
+      empId: userForm.empId || null
     }
     if (isEdit.value) {
       await userApi.update(userForm.userId, payload)
@@ -458,7 +467,7 @@ async function toggleStatus(row) {
 // 删除
 async function removeUser(row) {
   await ElMessageBox.confirm(
-    `确认删除「${row.name}」？账号将被停用且不可登录，历史学习与考试数据保留。`,
+    `确认删除「${row.name}」？账号将被停用且不可登录，历史学习与测试数据保留。`,
     '删除确认',
     { type: 'warning', confirmButtonText: '删除', confirmButtonClass: 'el-button--danger' }
   )

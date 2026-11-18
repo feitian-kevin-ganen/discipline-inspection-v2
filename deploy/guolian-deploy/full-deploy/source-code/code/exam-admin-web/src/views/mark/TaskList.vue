@@ -2,7 +2,7 @@
   <div class="page-container">
     <div class="page-card">
       <div class="toolbar">
-        <el-select v-model="query.examId" placeholder="考试场次" clearable filterable style="width: 240px" @change="handleSearch">
+        <el-select v-model="query.examId" placeholder="测试场次" clearable filterable style="width: 240px" @change="handleSearch">
           <el-option v-for="e in examOptions" :key="e.examId" :label="e.examName" :value="e.examId" />
         </el-select>
         <el-select v-model="query.status" placeholder="任务状态" clearable style="width: 140px" @change="handleSearch">
@@ -13,7 +13,7 @@
       </div>
 
       <el-table v-loading="loading" :data="list" border stripe>
-        <el-table-column prop="examName" label="考试名称" min-width="180" show-overflow-tooltip />
+        <el-table-column prop="examName" label="测试名称" min-width="180" show-overflow-tooltip />
         <el-table-column prop="sheetQuesSeq" label="题目序号" width="90" align="center" />
         <el-table-column label="题型" width="100" align="center">
           <template #default="{ row }">
@@ -40,7 +40,9 @@
             <el-tag :type="MARK_TASK_STATUS[row.status]?.type">{{ MARK_TASK_STATUS[row.status]?.label || row.status }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="deadline" label="截止时间" width="170" />
+        <el-table-column label="截止时间" width="170">
+          <template #default="{ row }">{{ fmtTime(row.deadline) }}</template>
+        </el-table-column>
         <el-table-column label="操作" width="120" fixed="right" align="center">
           <template #default="{ row }">
             <el-button v-if="row.status === 'PENDING'" type="primary" link @click="handleClaim(row)">领取任务</el-button>
@@ -72,6 +74,7 @@ import { ElMessage } from 'element-plus'
 import request from '../../utils/request'
 import { markApi } from '../../api'
 import { MARK_TASK_STATUS, QUES_TYPES } from '../../utils/dict'
+import { fmtTime } from '../../utils/format'
 
 const router = useRouter()
 const loading = ref(false)
@@ -90,7 +93,7 @@ const progressOf = (row) => (row.totalSheets ? Math.round((row.markedSheets / ro
 
 async function loadExams() {
   try {
-    // 阅卷教师无考试管理权限时下拉置空即可，静默降级不弹错误提示
+    // 阅卷教师无测试管理权限时下拉置空即可，静默降级不弹错误提示
     const data = await request.get('/admin/exams', { params: { pageNum: 1, pageSize: 200 }, __silent: true })
     examOptions.value = data.list || []
   } catch (e) {

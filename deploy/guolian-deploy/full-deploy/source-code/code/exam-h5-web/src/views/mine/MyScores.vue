@@ -22,7 +22,7 @@
           <span v-if="item.rankInOrg" class="text-muted">单位排名 {{ item.rankInOrg }}</span>
           <span v-if="item.retakeSeq" class="text-muted">第 {{ item.retakeSeq }} 次补考</span>
         </div>
-        <div class="text-muted">考试时间：{{ item.examTime }}</div>
+        <div class="text-muted">测试时间：{{ item.examTime }}</div>
       </van-cell-group>
     </van-list>
   </div>

@@ -15,12 +15,21 @@
 │       └── incremental-deploy/ # 增量包
 └── guolian/
     ├── test/                   # 国联测试环境
-    │   └── project-files/      # 测试机配置相关的源码与配置文件
+    │   └── project-files/      # 测试机差异基线（配置 + 需覆盖主工程的源码文件）
+    │       ├── code/           # 仅放需覆盖主工程 code/ 的文件（不放整份源码副本）
+    │       ├── config/         # 测试机外置配置权威副本
+    │       ├── db/             # 测试机数据库脚本
+    │       ├── docs/           # 测试机侧文档
+    │       ├── integration/    # 国联对接 SOP
+    │       └── scripts/        # 测试机运维脚本
     └── prd/                    # 国联生产环境（生产配置申请到之前保持为空）
 ```
 
-- `guolian/test/project-files/` 只放**测试机配置相关的源码与配置文件**，不放编译产物、发布包。
-- `guolian/test/` 代表国联测试环境；`guolian/prd/` 代表生产环境，生产配置申请到后再落内容。
+- `guolian/test/project-files/` 是**测试机差异基线**，不是源码副本：只放测试机专属配置与需要覆盖主工程的文件，不放编译产物、发布包、整份源码。
+- 结构约定（测试机与生产机一致）：
+  - `project-files/code/`：按主工程相对路径存放需要覆盖的文件，例如 `code/exam-server/src/main/resources/application.yml`、`code/sso-portal/index.html`。
+  - 主工程 `code/` 是唯一源码源；测试机源码由脚本生成，见 1.5。
+- `guolian/test/` 代表国联测试环境；`guolian/prd/` 代表生产环境，生产配置申请到后再按同样结构落内容（`guolian/prd/project-files/code/`）。
 - 本机运行目录与测试机发布目录严格分离：本机用 `deploy/local-deploy/`，测试机包只从 `deploy/guolian-deploy/` 产出。
 
 ### 0.1 机器与环境角色（术语定义）
@@ -108,14 +117,34 @@ AIExamK3/
 
 ### 1.5 源码同步要求
 
-**每次发布打包测试机全量包时，必须同步更新并推送远端 `deploy/guolian-deploy/full-deploy/source-code/` 目录。**
+**每次发布打包测试机全量包时，必须用脚本重新生成并推送远端 `deploy/guolian-deploy/full-deploy/source-code/`。**
 
-具体操作：
+生成命令（唯一入口，不要手工 rsync / 复制）：
 
-1. 将本次构建所使用的源码同步到 `deploy/guolian-deploy/full-deploy/source-code/code/`。
-2. 确保 `source-code/` 下不包含 `node_modules/`、`target/`、`dist/` 等编译产物。
-3. 将 `source-code/` 的变更与本次发布说明一起提交到 Git，并推送至远端仓库。
-4. 远端仓库中的源码版本必须与本次发布的 `deploy-files/` 版本一一对应。
+```bash
+cd /home/cloud/projects/AIExamK3
+./code/scripts/sync-test-source.sh
+```
+
+脚本行为：
+
+1. 以主工程 `code/` 为唯一源码源，rsync 到 `deploy/guolian-deploy/full-deploy/source-code/code/`（带 `--delete`）。
+2. 显式清理本机专用内容与编译产物，避免排除项残留：
+   - `tools/`、`local-portal/`、`logs/`、`run/`
+   - `exam-integration/.../portal/`、`MockGuolianTicketClient.java`
+   - `exam-server/src/main/resources/db/data-local-portal-accounts-mysql.sql`
+   - `scripts/local_gateway.py`、`scripts/start_all_local.sh`、`scripts/stop_all_local.sh`
+   - 任意层级的 `target/`、`node_modules/`、`dist/`
+3. 用差异基线 `guolian/test/project-files/code/` 覆盖同名文件（测试机配置/门户页等）。
+4. 写入测试机外置配置 `config/application-polardb.yml`（来源 `guolian/test/project-files/config/application-polardb.yml`）。
+5. 执行 13 项校验，任一不通过脚本直接失败：不得激活 `local` profile、DB/Redis/OSS/AI/公服地址必须是测试机地址、门户页必须走真实公服 `integration/ticket/login`、不得含 Mock 与本地门户、必须含 `exam-workflow`、外置配置与基线一致、不得含编译产物。
+
+硬性要求：
+
+- 测试机配置的权威来源是 `guolian/test/project-files/code/` 与 `guolian/test/project-files/config/application-polardb.yml`，**不得使用本机配置**。
+- 门户单点登录必须是**真实公服链路**（`/api/v1/integration/ticket/login` + 国联公服 `10.20.8.8:32389`）；本机 Mock 门户、`api/v1/portal`、`MockGuolianTicketClient` 一律不许进入测试机源码。
+- 生成后 `source-code/` 的变更必须与本次发布说明一起提交并推送到远端；远端源码版本必须与本次发布的 `deploy-files/` 版本一一对应。
+- 生成后建议在 `source-code/code/` 执行一次 `mvn -o -DskipTests compile` 验证可编译，验证完清理 `target/`。
 
 ---
 

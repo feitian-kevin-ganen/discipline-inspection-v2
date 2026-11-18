@@ -34,7 +34,9 @@
           </template>
         </el-table-column>
         <el-table-column prop="failReason" label="失败原因" min-width="160" show-overflow-tooltip />
-        <el-table-column prop="loginTime" label="登录时间" width="170" />
+        <el-table-column label="登录时间" width="170">
+          <template #default="{ row }">{{ fmtTime(row.loginTime) }}</template>
+        </el-table-column>
       </el-table>
 
       <div class="pager">
@@ -55,6 +57,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { sysApi } from '../../api'
+import { fmtTime } from '../../utils/format'
 
 const query = reactive({ keyword: '', result: '', pageNum: 1, pageSize: 20 })
 const timeRange = ref([])

@@ -3,17 +3,21 @@
     <el-card shadow="never">
       <template #header>
         <div class="header">
-          <span class="card-title">考试中心</span>
+          <span class="card-title">测试中心</span>
           <el-radio-group v-model="type" @change="onTypeChange">
             <el-radio-button value="TODO">待考</el-radio-button>
-            <el-radio-button value="HISTORY">历史考试</el-radio-button>
+            <el-radio-button value="HISTORY">历史测试</el-radio-button>
           </el-radio-group>
         </div>
       </template>
       <el-table :data="list" v-loading="loading">
-        <el-table-column prop="examName" label="考试名称" min-width="220" show-overflow-tooltip />
-        <el-table-column prop="startTime" label="开始时间" width="170" />
-        <el-table-column prop="endTime" label="结束时间" width="170" />
+        <el-table-column prop="examName" label="测试名称" min-width="220" show-overflow-tooltip />
+        <el-table-column label="开始时间" width="170">
+          <template #default="{ row }">{{ fmtTime(row.startTime) }}</template>
+        </el-table-column>
+        <el-table-column label="结束时间" width="170">
+          <template #default="{ row }">{{ fmtTime(row.endTime) }}</template>
+        </el-table-column>
         <el-table-column label="时长" width="80" align="center">
           <template #default="{ row }">{{ row.durationMin }}分钟</template>
         </el-table-column>
@@ -39,7 +43,7 @@
               size="small"
               @click="$router.push(`/exam/notice/${row.examId}`)"
             >
-              {{ row.mySheetStatus === 'IN_EXAM' ? '继续答题' : '进入考试' }}
+              {{ row.mySheetStatus === 'IN_EXAM' ? '继续答题' : '进入测试' }}
             </el-button>
             <el-tooltip v-else-if="row.cannotEnterReason" :content="row.cannotEnterReason">
               <el-button size="small" disabled>不可进入</el-button>
@@ -56,7 +60,7 @@
           </template>
         </el-table-column>
         <template #empty>
-          <el-empty :description="type === 'TODO' ? '暂无待考考试' : '暂无历史考试'" />
+          <el-empty :description="type === 'TODO' ? '暂无待考测试' : '暂无历史测试'" />
         </template>
       </el-table>
       <div class="pager">
@@ -76,6 +80,7 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import { getMyExams } from '@/api/take'
+import { fmtTime } from '@/utils'
 
 const loading = ref(false)
 const type = ref('TODO')

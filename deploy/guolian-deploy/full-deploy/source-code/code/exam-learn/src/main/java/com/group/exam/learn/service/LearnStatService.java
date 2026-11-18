@@ -235,6 +235,36 @@ public class LearnStatService {
         return result;
     }
 
+    // ---------------------------------------------------------------- LSTAT-06 已完成资料名称（悬停提示）
+
+    /** 某用户或某单位子树在周期内已完成资料的名称清单（去重，按名称排序） */
+    public List<String> completedMaterialTitles(Long userId, Long orgId, String periodType,
+                                                String startDate, String endDate) {
+        LocalDateTime[] period = resolvePeriod(periodType, startDate, endDate);
+        QueryWrapper<LearnRecord> qw = new QueryWrapper<LearnRecord>()
+                .select("DISTINCT material_title")
+                .eq("finish_status", 2)
+                .ge("last_learn_time", period[0]).lt("last_learn_time", period[1])
+                .orderByAsc("material_title");
+        if (userId != null) {
+            OrgUser u = orgUserService.getById(userId);
+            if (u == null) {
+                throw new BizException(ErrorCode.NOT_FOUND, "用户不存在");
+            }
+            SecurityUtils.checkOrgScope(u.getOrgPath());
+            qw.eq("user_id", userId);
+        } else if (orgId != null) {
+            OrgUnit unit = requireUnitInScope(orgId);
+            qw.likeRight("org_path", unit.getPath());
+        } else {
+            throw new BizException(ErrorCode.STAT_PARAM_ERROR, "userId 与 orgId 至少传一个");
+        }
+        return recordMapper.selectList(qw).stream()
+                .map(LearnRecord::getMaterialTitle)
+                .filter(StringUtils::hasText)
+                .collect(Collectors.toList());
+    }
+
     // ---------------------------------------------------------------- LSTAT-05 导出
 
     public void export(String exportType, Long orgId, String periodType, String startDate, String endDate,
@@ -254,8 +284,8 @@ public class LearnStatService {
                 for (OrgUnit child : children) {
                     Map<String, Object> agg = aggregateOrg(child, period, standardSec);
                     rows.add(List.of(agg.get("orgId"), agg.get("orgName"), agg.get("userCount"),
-                            agg.get("avgEffectiveSec"), agg.get("materialDoneRate"), agg.get("taskDoneRate"),
-                            agg.get("belowCount")));
+                            agg.get("avgEffectiveSec"), rateToPct(agg.get("materialDoneRate")),
+                            rateToPct(agg.get("taskDoneRate")), agg.get("belowCount")));
                 }
             }
             case "USER_DETAIL", "BELOW_STANDARD" -> {
@@ -290,6 +320,14 @@ public class LearnStatService {
 
     // ---------------------------------------------------------------- 内部聚合
 
+    /** 小数比率（0~1）转百分数（0~100，2 位小数），供导出百分比列使用 */
+    private static BigDecimal rateToPct(Object rate) {
+        if (rate instanceof BigDecimal bd) {
+            return bd.multiply(BigDecimal.valueOf(100)).setScale(2, RoundingMode.HALF_UP);
+        }
+        return BigDecimal.ZERO;
+    }
+
     /** 单位子树聚合：userCount/avgEffectiveSec/materialDoneRate/taskDoneRate/belowCount */
     private Map<String, Object> aggregateOrg(OrgUnit child, LocalDateTime[] period, int standardSec) {
         List<LearnRecord> records = recordsInPath(child.getPath(), period);
@@ -320,9 +358,9 @@ public class LearnStatService {
         item.put("userCount", userCount);
         item.put("avgEffectiveSec", userCount == 0 ? 0 : totalSec / userCount);
         item.put("materialDoneRate", records.isEmpty() ? BigDecimal.ZERO
-                : BigDecimal.valueOf(doneCount * 100.0 / records.size()).setScale(2, RoundingMode.HALF_UP));
+                : BigDecimal.valueOf(doneCount * 1.0 / records.size()).setScale(4, RoundingMode.HALF_UP));
         item.put("taskDoneRate", taskUsers.isEmpty() ? BigDecimal.ZERO
-                : BigDecimal.valueOf(taskDone * 100.0 / taskUsers.size()).setScale(2, RoundingMode.HALF_UP));
+                : BigDecimal.valueOf(taskDone * 1.0 / taskUsers.size()).setScale(4, RoundingMode.HALF_UP));
         item.put("belowCount", belowCount);
         return item;
     }
@@ -394,7 +432,7 @@ public class LearnStatService {
             stats.put("doing", doing);
             stats.put("expired", expired);
             stats.put("doneRate", total == 0 ? BigDecimal.ZERO
-                    : BigDecimal.valueOf(done * 100.0 / total).setScale(2, RoundingMode.HALF_UP));
+                    : BigDecimal.valueOf(done * 1.0 / total).setScale(4, RoundingMode.HALF_UP));
             result.put(uid, stats);
         });
         return result;

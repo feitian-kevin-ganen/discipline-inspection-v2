@@ -46,6 +46,16 @@ export const useAuthStore = defineStore('auth', {
       this.persist()
       return data
     },
+    // 国联 APP ticket 免密登录
+    async loginByTicket(ticket) {
+      const data = await authApi.ticketLogin({ ticket })
+      this.accessToken = data.accessToken
+      this.refreshToken = data.refreshToken
+      this.user = data.user
+      this.mustChangePassword = !!data.mustChangePassword
+      this.persist()
+      return data
+    },
     setTokens(accessToken, refreshToken) {
       this.accessToken = accessToken
       this.refreshToken = refreshToken

@@ -6,7 +6,7 @@ import java.io.Serializable;
 import java.util.List;
 
 /**
- * 推送考试通知（EXAM-11）
+ * 推送测试通知（EXAM-11）
  */
 @Data
 public class ExamNotifyReq implements Serializable {

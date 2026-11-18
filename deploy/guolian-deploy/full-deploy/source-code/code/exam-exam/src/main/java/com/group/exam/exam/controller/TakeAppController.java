@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Map;
 
 /**
- * 在线考试考生端（TAKE-01~09）
+ * 在线测试考生端（TAKE-01~09）
  */
 @RestController
 @RequestMapping("/api/v1/app")
@@ -32,7 +32,7 @@ public class TakeAppController {
         this.sheetService = sheetService;
     }
 
-    /** TAKE-01 待考/历史考试列表 */
+    /** TAKE-01 待考/历史测试列表 */
     @GetMapping("/exams")
     public Result<PageResult<Map<String, Object>>> myExams(@RequestParam(defaultValue = "TODO") String type,
                                                            @RequestParam(defaultValue = "1") long pageNum,
@@ -42,7 +42,7 @@ public class TakeAppController {
                 Math.max(pageNum, 1), Math.min(Math.max(pageSize, 1), 200)));
     }
 
-    /** TAKE-02 进入考试（须知确认） */
+    /** TAKE-02 进入测试（须知确认） */
     @PostMapping("/exams/{examId}/enter")
     public Result<Map<String, Object>> enter(@PathVariable Long examId, @RequestBody(required = false) EnterExamReq req) {
         requireExaminee();

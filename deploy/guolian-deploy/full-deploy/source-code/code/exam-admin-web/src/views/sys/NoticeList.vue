@@ -29,7 +29,9 @@
           </template>
         </el-table-column>
         <el-table-column prop="createdBy" label="创建人" width="110" />
-        <el-table-column prop="createdTime" label="创建时间" width="170" />
+        <el-table-column label="创建时间" width="170">
+          <template #default="{ row }">{{ fmtTime(row.createdTime) }}</template>
+        </el-table-column>
       </el-table>
 
       <div class="pager">
@@ -85,6 +87,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { sysApi, orgApi } from '../../api'
 import { NOTICE_TYPES } from '../../utils/dict'
+import { fmtTime } from '../../utils/format'
 
 const NOTICE_TAG_TYPES = { EXAM: 'primary', SCORE: 'success', LEARN_TASK: 'warning', GENERAL: 'info' }
 const noticeTagType = (v) => NOTICE_TAG_TYPES[v] || 'info'

@@ -30,15 +30,15 @@
 
     <el-row :gutter="16">
       <el-col :span="10">
-        <!-- 待办考试 -->
+        <!-- 待办测试 -->
         <el-card shadow="never" class="mb16">
           <template #header>
             <div class="card-header">
-              <span>待办考试</span>
+              <span>待办测试</span>
               <el-button text type="primary" @click="$router.push('/exam')">全部</el-button>
             </div>
           </template>
-          <el-empty v-if="!todoExams.length" description="暂无待办考试" :image-size="60" />
+          <el-empty v-if="!todoExams.length" description="暂无待办测试" :image-size="60" />
           <div v-for="e in todoExams" :key="e.examId" class="exam-item">
             <div class="exam-info">
               <div class="exam-name">{{ e.examName }}</div>
@@ -50,7 +50,7 @@
               size="small"
               @click="$router.push(`/exam/notice/${e.examId}`)"
             >
-              {{ e.mySheetStatus === 'IN_EXAM' ? '继续答题' : '进入考试' }}
+              {{ e.mySheetStatus === 'IN_EXAM' ? '继续答题' : '进入测试' }}
             </el-button>
             <el-tag v-else size="small" type="info">{{ e.cannotEnterReason || '未开始' }}</el-tag>
           </div>
@@ -128,7 +128,7 @@ const taskDoneRateText = computed(() => {
   return r == null ? '0%' : `${Math.round(r * 100)}%`
 })
 
-const NOTICE_TYPES = { EXAM: '考试', SCORE: '成绩', LEARN_TASK: '学习任务', GENERAL: '通知' }
+const NOTICE_TYPES = { EXAM: '测试', SCORE: '成绩', LEARN_TASK: '学习任务', GENERAL: '通知' }
 const noticeTypeName = (t) => NOTICE_TYPES[t] || '通知'
 const noticeTypeTag = (t) => ({ EXAM: 'primary', SCORE: 'success', LEARN_TASK: 'warning', GENERAL: 'info' }[t] || 'info')
 

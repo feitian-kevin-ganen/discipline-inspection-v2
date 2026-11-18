@@ -21,6 +21,10 @@
             <groupId>com.group.exam</groupId>
             <artifactId>exam-system</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.group.exam</groupId>
+            <artifactId>exam-workflow</artifactId>
+        </dependency>
         <!-- PDF 逐页转图片：前端只加载 JPEG 页图，避免 PDF 文件流被 IDM 等下载工具拦截 -->
         <dependency>
             <groupId>org.apache.pdfbox</groupId>

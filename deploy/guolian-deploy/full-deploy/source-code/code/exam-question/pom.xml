@@ -17,6 +17,10 @@
             <groupId>com.group.exam</groupId>
             <artifactId>exam-common</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.group.exam</groupId>
+            <artifactId>exam-workflow</artifactId>
+        </dependency>
     </dependencies>
 
 </project>

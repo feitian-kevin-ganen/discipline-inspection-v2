@@ -3,6 +3,8 @@
 > 适用对象：需要接入国联集团公共服务平台（以下简称"公服"）单点登录的新应用系统。
 > 本文档由"纪检监察业务学习平台"（本项目）与国联APP/PC门户的实际对接经验整理，含全部坑点与规避方法。
 > 版本：2026-09-08（对应源码 git 分支 migration-prep，提交 39fadfc 及之后）
+>
+> 路径说明（2026-11 更新）：文中 `code/...` 指主工程 `/home/cloud/projects/AIExamK3/code/`。测试机差异基线在 `guolian/test/project-files/code/`，只存需覆盖主工程的文件；测试机完整源码由 `code/scripts/sync-test-source.sh` 生成到 `deploy/guolian-deploy/full-deploy/source-code/code/`。
 
 ---
 
@@ -140,7 +142,7 @@ exam:
 
 ### 4.3 代码（本项目 exam-integration 模块，可直接复用）
 
-模块文件清单（`code-src/exam-integration/`）：
+模块文件清单（`code/exam-integration/`）：
 
 | 文件 | 职责 |
 |---|---|
@@ -220,7 +222,7 @@ if (body.code === 10002 && !config.url.includes('/auth/') && !config.url.include
 
 ### 5.3 门户分流页（免构建静态页）
 
-源码：`code-src/sso-portal/index.html`，部署到 `web/sso/index.html`，LB 按精确路径挂载（见 6.2）。逻辑：取 ticket → 调 ticket/login → 判角色/终端 → 写目标端 localStorage → `sessionStorage.setItem('sso_redirect','1')` → `location.replace(目标端/login)`；首登改密直接送 `目标端/change-password`。失败显示原因 + 三端入口链接。
+源码：`code/sso-portal/index.html`，部署到 `web/sso/index.html`，LB 按精确路径挂载（见 6.2）。逻辑：取 ticket → 调 ticket/login → 判角色/终端 → 写目标端 localStorage → `sessionStorage.setItem('sso_redirect','1')` → `location.replace(目标端/login)`；首登改密直接送 `目标端/change-password`。失败显示原因 + 三端入口链接。
 
 ### 5.4 防闪烁
 
@@ -383,9 +385,9 @@ curl -s -X POST -H "Content-Type: application/json" -d '{"ticket":"<t>","termina
 
 **源码（git 分支 migration-prep）**：
 
-- 后端模块：`code-src/exam-integration/`（4 个类 + pom）、`code-src/exam-common/.../SecurityConfig.java`（白名单行 46）
+- 后端模块：`code/exam-integration/`（4 个类 + pom）、`code/exam-common/.../SecurityConfig.java`（白名单行 46）
 - 配置：`config/application-polardb.yml` 的 `exam.integration.guolian` 段
-- 前端：`exam-h5-web/src/views/login/LoginPage.vue`、`exam-admin-web/src/views/login/Login.vue`、`exam-user-web/src/views/login/Login.vue`（各含 api/stores/request 拦截器配套修改）；`code-src/sso-portal/index.html`（门户分流页源码）
+- 前端：`exam-h5-web/src/views/login/LoginPage.vue`、`exam-admin-web/src/views/login/Login.vue`、`exam-user-web/src/views/login/Login.vue`（各含 api/stores/request 拦截器配套修改）；`code/sso-portal/index.html`（门户分流页源码）
 - 前端构建配置：三个端 `vite.config.js` 的 `base` + `router/index.js` 的 `createWebHistory(import.meta.env.BASE_URL)`
 
 **部署产物（源机 /root/AIExamK3/）**：

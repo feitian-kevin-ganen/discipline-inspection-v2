@@ -37,7 +37,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 考试场次管理（EXAM-01~06、EXAM-12~14）
+ * 测试场次管理（EXAM-01~06、EXAM-12~14）
  *
  * <p>数据权限：按 create_org_path 前缀过滤；单条操作 checkOrgScope。
  */
@@ -129,6 +129,7 @@ public class ExamSessionService extends ServiceImpl<ExamSessionMapper, ExamSessi
 
         ExamSession session = new ExamSession();
         session.setSessionName(req.getExamName().trim());
+        requireSessionNameUnique(session.getSessionName(), null);
         session.setPaperId(paper.getId());
         session.setPaperName(paper.getPaperName());
         session.setPaperVersion(paper.getVersion());
@@ -142,7 +143,7 @@ public class ExamSessionService extends ServiceImpl<ExamSessionMapper, ExamSessi
         save(session);
         // 关联后试卷自动封存
         paperService.sealOnReferenced(paper.getId());
-        sysLogService.log(1, "EXAM", "创建考试场次",
+        sysLogService.log(1, "EXAM", "创建测试场次",
                 "创建场次[" + session.getSessionName() + "]，试卷[" + paper.getPaperName() + "]", 1);
 
         Map<String, Object> result = new LinkedHashMap<>();
@@ -265,7 +266,7 @@ public class ExamSessionService extends ServiceImpl<ExamSessionMapper, ExamSessi
         long candidateCount = examCandidateMapper.selectCount(
                 new QueryWrapper<ExamCandidate>().eq("session_id", examId));
         if (candidateCount > 0) {
-            // 已下发名单后仅可改考试须知
+            // 已下发名单后仅可改测试须知
             if (req.getNotice() != null) {
                 Map<String, Object> snapshot = session.getPaperStrategySnapshot() == null
                         ? new LinkedHashMap<>() : new LinkedHashMap<>(session.getPaperStrategySnapshot());
@@ -281,7 +282,11 @@ public class ExamSessionService extends ServiceImpl<ExamSessionMapper, ExamSessi
         if (paper.getPaperStatus() == null || paper.getPaperStatus() == PaperStatusEnum.EDITING.getCode()) {
             throw new BizException(ErrorCode.PAPER_SEALED, "试卷为草稿状态，须先完成组卷启用");
         }
+        String oldName = session.getSessionName();
         session.setSessionName(req.getExamName().trim());
+        if (!session.getSessionName().equals(oldName)) {
+            requireSessionNameUnique(session.getSessionName(), examId);
+        }
         if (!paper.getId().equals(session.getPaperId())) {
             session.setPaperId(paper.getId());
             session.setPaperName(paper.getPaperName());
@@ -308,7 +313,7 @@ public class ExamSessionService extends ServiceImpl<ExamSessionMapper, ExamSessi
             throw new BizException(ErrorCode.SESSION_STATUS_INVALID, "已生成考生名单的场次只能取消，不可删除");
         }
         removeById(examId);
-        sysLogService.log(1, "EXAM", "删除考试场次", "删除场次[" + session.getSessionName() + "]", 1);
+        sysLogService.log(1, "EXAM", "删除测试场次", "删除场次[" + session.getSessionName() + "]", 1);
     }
 
     // ---------------------------------------------------------------- EXAM-06 状态流转
@@ -350,7 +355,7 @@ public class ExamSessionService extends ServiceImpl<ExamSessionMapper, ExamSessi
                         + " → " + SessionStatusEnum.toApi(session.getSessionStatus()), 1);
     }
 
-    // ---------------------------------------------------------------- EXAM-12 延长考试时间
+    // ---------------------------------------------------------------- EXAM-12 延长测试时间
 
     @Transactional(rollbackFor = Exception.class)
     public Map<String, Object> extend(Long examId, Integer extendMin) {
@@ -378,7 +383,7 @@ public class ExamSessionService extends ServiceImpl<ExamSessionMapper, ExamSessi
                 answerSheetMapper.updateById(update);
             }
         }
-        sysLogService.log(1, "EXAM", "延长考试时间",
+        sysLogService.log(1, "EXAM", "延长测试时间",
                 "场次[" + session.getSessionName() + "] 延长 " + extendMin + " 分钟", 1);
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("examId", examId);
@@ -424,6 +429,7 @@ public class ExamSessionService extends ServiceImpl<ExamSessionMapper, ExamSessi
 
         ExamSession retake = new ExamSession();
         retake.setSessionName(source.getSessionName() + "（补考）");
+        requireSessionNameUnique(retake.getSessionName(), null);
         retake.setPaperId(source.getPaperId());
         retake.setPaperName(source.getPaperName());
         retake.setPaperVersion(source.getPaperVersion());
@@ -505,7 +511,7 @@ public class ExamSessionService extends ServiceImpl<ExamSessionMapper, ExamSessi
     public ExamSession requireInScope(Long examId) {
         ExamSession session = getById(examId);
         if (session == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "考试场次不存在: " + examId);
+            throw new BizException(ErrorCode.NOT_FOUND, "测试场次不存在: " + examId);
         }
         SecurityUtils.checkOrgScope(session.getCreateOrgPath());
         return session;
@@ -513,16 +519,28 @@ public class ExamSessionService extends ServiceImpl<ExamSessionMapper, ExamSessi
 
     private void validateSaveReq(ExamSaveReq req, boolean requireAll) {
         if (!StringUtils.hasText(req.getExamName())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "考试名称不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "测试名称不能为空");
         }
         if (req.getPaperId() == null) {
             throw new BizException(ErrorCode.PARAM_ERROR, "必须关联试卷 paperId");
         }
         if (req.getStartTime() == null || req.getEndTime() == null || !req.getEndTime().isAfter(req.getStartTime())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "考试时间窗口非法（endTime 须晚于 startTime）");
+            throw new BizException(ErrorCode.PARAM_ERROR, "测试时间窗口非法（endTime 须晚于 startTime）");
         }
         if (req.getDurationMin() != null && req.getDurationMin() <= 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "考试时长必须为正整数");
+            throw new BizException(ErrorCode.PARAM_ERROR, "测试时长必须为正整数");
+        }
+    }
+
+    /** 测试名称唯一性校验：未删除场次间不重名；excludeId 用于编辑时排除自身 */
+    private void requireSessionNameUnique(String sessionName, Long excludeId) {
+        boolean dup = lambdaQuery()
+                .eq(ExamSession::getSessionName, sessionName)
+                .ne(excludeId != null, ExamSession::getId, excludeId)
+                .select(ExamSession::getId)
+                .list().stream().findFirst().isPresent();
+        if (dup) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "测试名称已存在，请更换名称");
         }
     }
 

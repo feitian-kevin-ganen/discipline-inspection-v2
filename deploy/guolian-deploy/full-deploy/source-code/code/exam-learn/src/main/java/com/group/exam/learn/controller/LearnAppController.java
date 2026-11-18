@@ -88,6 +88,13 @@ public class LearnAppController {
         learnAppService.streamPageImage(materialId, pageNo, response);
     }
 
+    /** LEARN-03f DOCX 在线预览（后端解析 word 结构输出 HTML，图片内嵌 base64，浏览器排版显示） */
+    @GetMapping("/materials/{materialId}/doc-html")
+    public void docHtml(@PathVariable Long materialId,
+                        jakarta.servlet.http.HttpServletResponse response) throws java.io.IOException {
+        learnAppService.streamDocHtml(materialId, response);
+    }
+
     /** LEARN-04 学习进度心跳上报 */
     @PostMapping("/heartbeat")
     public Result<Map<String, Object>> heartbeat(@Validated @RequestBody HeartbeatRequest request) {

@@ -14,6 +14,12 @@ const routes = [
     name: 'TakeExam',
     component: () => import('@/views/exam/TakeExam.vue')
   },
+  // 练习答题页全屏，不带侧边布局（与 H5 端一致，退出需确认）
+  {
+    path: '/practice/answer',
+    name: 'PracticeAnswer',
+    component: () => import('@/views/practice/PracticeAnswer.vue')
+  },
   {
     path: '/',
     component: () => import('@/layouts/MainLayout.vue'),
@@ -27,6 +33,9 @@ const routes = [
         component: () => import('@/views/learn/MaterialDetail.vue')
       },
       { path: 'learn/tasks', name: 'LearnTasks', component: () => import('@/views/learn/LearnTasks.vue') },
+      { path: 'practice', name: 'Practice', component: () => import('@/views/practice/PracticeHome.vue') },
+      { path: 'practice/records', name: 'PracticeRecords', component: () => import('@/views/practice/PracticeRecords.vue') },
+      { path: 'practice/stat', name: 'PracticeStat', component: () => import('@/views/practice/PracticeStat.vue') },
       { path: 'exam', name: 'ExamList', component: () => import('@/views/exam/ExamList.vue') },
       {
         path: 'exam/notice/:examId',

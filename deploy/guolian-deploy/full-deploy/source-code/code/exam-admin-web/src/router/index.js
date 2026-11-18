@@ -24,25 +24,31 @@ const routes = [
       // 题库管理
       { path: 'ques/items', name: 'QuesItems', component: () => import('../views/ques/ItemList.vue'), meta: { title: '题目管理', roles: ADMIN_ROLES } },
       { path: 'ques/items/edit/:id?', name: 'QuesItemEdit', component: () => import('../views/ques/ItemForm.vue'), meta: { title: '编辑题目', roles: ADMIN_ROLES } },
+      { path: 'ques/ai-gen', name: 'AiGenCreate', component: () => import('../views/ques/AiGenCreate.vue'), meta: { title: 'AI辅助生成题目', roles: ADMIN_ROLES } },
+      { path: 'ques/ai-gen/tasks', name: 'AiGenTasks', component: () => import('../views/ques/AiGenTasks.vue'), meta: { title: '生成中的题目列表', roles: ADMIN_ROLES } },
       // 试卷管理
       { path: 'papers', name: 'PaperList', component: () => import('../views/paper/PaperList.vue'), meta: { title: '试卷管理', roles: ADMIN_ROLES } },
       { path: 'papers/edit/:id?', name: 'PaperEdit', component: () => import('../views/paper/PaperEdit.vue'), meta: { title: '编辑试卷', roles: ADMIN_ROLES } },
       { path: 'papers/:id/preview', name: 'PaperPreview', component: () => import('../views/paper/PaperPreview.vue'), meta: { title: '试卷预览', roles: ADMIN_ROLES } },
-      // 考试管理
-      { path: 'exams', name: 'ExamList', component: () => import('../views/exam/ExamList.vue'), meta: { title: '考试场次', roles: ADMIN_ROLES } },
+      // 测试管理
+      { path: 'exams', name: 'ExamList', component: () => import('../views/exam/ExamList.vue'), meta: { title: '测试场次', roles: ADMIN_ROLES } },
       { path: 'exams/edit/:id?', name: 'ExamEdit', component: () => import('../views/exam/ExamEdit.vue'), meta: { title: '编辑场次', roles: ADMIN_ROLES } },
       { path: 'exams/:id', name: 'ExamDetail', component: () => import('../views/exam/ExamDetail.vue'), meta: { title: '场次详情', roles: ADMIN_ROLES } },
       // 阅卷管理
       { path: 'mark/tasks', name: 'MarkTasks', component: () => import('../views/mark/TaskList.vue'), meta: { title: '阅卷任务', roles: MARK_ROLES } },
       { path: 'mark/tasks/:taskId', name: 'MarkItems', component: () => import('../views/mark/MarkItems.vue'), meta: { title: '在线阅卷', roles: MARK_ROLES } },
       { path: 'mark/review', name: 'ReviewQueue', component: () => import('../views/mark/ReviewQueue.vue'), meta: { title: '复核队列', roles: MARK_ROLES } },
-      // 考试统计
-      { path: 'stat', name: 'ExamStat', component: () => import('../views/stat/ExamStat.vue'), meta: { title: '考试统计', roles: ADMIN_ROLES } },
+      // 测试统计
+      { path: 'stat', name: 'ExamStat', component: () => import('../views/stat/ExamStat.vue'), meta: { title: '测试统计', roles: ADMIN_ROLES } },
+      // 审批流程
+      { path: 'workflow/todo', name: 'FlowTodo', component: () => import('../views/workflow/TodoList.vue'), meta: { title: '待办审批', roles: ADMIN_ROLES } },
+      { path: 'workflow/started', name: 'FlowStarted', component: () => import('../views/workflow/MyStarted.vue'), meta: { title: '我发起的流程', roles: ADMIN_ROLES } },
+      { path: 'workflow/definitions', name: 'FlowDefinitions', component: () => import('../views/workflow/Definitions.vue'), meta: { title: '流程定义', roles: ADMIN_ROLES } },
       // 系统管理
       { path: 'sys/configs', name: 'SysConfigs', component: () => import('../views/sys/ConfigList.vue'), meta: { title: '参数配置', roles: SYS_ROLES } },
       { path: 'sys/logs/login', name: 'LoginLogs', component: () => import('../views/sys/LoginLogs.vue'), meta: { title: '登录日志', roles: SYS_ROLES } },
       { path: 'sys/logs/operation', name: 'OperationLogs', component: () => import('../views/sys/OperationLogs.vue'), meta: { title: '操作日志', roles: SYS_ROLES } },
-      { path: 'sys/logs/exam-abnormal', name: 'ExamAbnormalLogs', component: () => import('../views/sys/ExamAbnormalLogs.vue'), meta: { title: '考试异常日志', roles: ADMIN_ROLES } },
+      { path: 'sys/logs/exam-abnormal', name: 'ExamAbnormalLogs', component: () => import('../views/sys/ExamAbnormalLogs.vue'), meta: { title: '测试异常日志', roles: ADMIN_ROLES } },
       { path: 'sys/notices', name: 'NoticeList', component: () => import('../views/sys/NoticeList.vue'), meta: { title: '站内通知', roles: ADMIN_ROLES } }
     ]
   },
@@ -55,8 +61,8 @@ const router = createRouter({
 })
 
 router.beforeEach((to) => {
-  document.title = (to.meta.title ? to.meta.title + ' - ' : '') + '纪检监察人员在线考试系统'
-  const token = localStorage.getItem('accessToken')
+  document.title = (to.meta.title ? to.meta.title + ' - ' : '') + '“纪检监察业务”学习平台'
+  const token = localStorage.getItem('mgmt_accessToken')
   if (to.path === '/login') {
     return true
   }
@@ -64,7 +70,7 @@ router.beforeEach((to) => {
     return { path: '/login', query: { redirect: to.fullPath } }
   }
   if (to.meta.roles) {
-    const user = JSON.parse(localStorage.getItem('userInfo') || 'null')
+    const user = JSON.parse(localStorage.getItem('mgmt_userInfo') || 'null')
     const roles = (user && user.roles) || []
     if (!roles.some((r) => to.meta.roles.includes(r))) {
       return { path: '/dashboard' }

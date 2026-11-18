@@ -38,6 +38,19 @@ export function fmtDuration(sec) {
   return h > 0 ? `${h}小时${m}分` : `${m}分钟`
 }
 
+
+/** 服务器时间（ISO 字符串/时间戳/Date）→ 'yyyy-MM-dd HH:mm:ss'（24小时制），空值返回 '—' */
+export function fmtTime(t) {
+  if (t === null || t === undefined || t === '') return '—'
+  if (typeof t === 'string') {
+    const s = t.replace('T', ' ')
+    return s.length > 19 ? s.slice(0, 19) : s
+  }
+  const d = t instanceof Date ? t : new Date(t)
+  if (isNaN(d.getTime())) return String(t)
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`
+}
+
 /** 当前时间 yyyy-MM-dd HH:mm:ss */
 export function fmtNow(d = new Date()) {
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`

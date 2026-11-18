@@ -9,7 +9,7 @@ import java.util.Map;
 
 /**
  * 编辑试卷（PAPER-04），仅传需修改字段。
- * 未封存且未被考试引用的试卷允许修改抽题策略与分数设计（randomStrategy/totalScore 等）
+ * 未封存且未被测试引用的试卷允许修改抽题策略与分数设计（randomStrategy/totalScore 等）
  */
 @Data
 public class PaperUpdateReq implements Serializable {

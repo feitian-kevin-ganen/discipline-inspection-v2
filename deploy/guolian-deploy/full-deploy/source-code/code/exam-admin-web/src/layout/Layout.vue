@@ -1,7 +1,7 @@
 <template>
   <el-container class="layout">
     <el-aside width="220px" class="aside">
-      <div class="logo">在线考试系统管理端</div>
+      <div class="logo">“纪检监察业务”学习平台</div>
       <el-menu
         :default-active="activePath"
         router
@@ -85,15 +85,19 @@ const MENU_CONFIG = [
   },
   {
     title: '题库管理', icon: 'Collection', roles: ADMIN,
-    children: [{ title: '题目管理', path: '/ques/items' }]
+    children: [
+      { title: '题目管理', path: '/ques/items' },
+      { title: 'AI辅助生成题目', path: '/ques/ai-gen' },
+      { title: '生成中的题目列表', path: '/ques/ai-gen/tasks' }
+    ]
   },
   {
     title: '试卷管理', icon: 'Document', roles: ADMIN,
     children: [{ title: '试卷列表', path: '/papers' }]
   },
   {
-    title: '考试管理', icon: 'AlarmClock', roles: ADMIN,
-    children: [{ title: '考试场次', path: '/exams' }]
+    title: '测试管理', icon: 'AlarmClock', roles: ADMIN,
+    children: [{ title: '测试场次', path: '/exams' }]
   },
   {
     title: '阅卷管理', icon: 'EditPen', roles: MARK,
@@ -103,8 +107,16 @@ const MENU_CONFIG = [
     ]
   },
   {
-    title: '考试统计', icon: 'DataAnalysis', roles: ADMIN,
+    title: '测试统计', icon: 'DataAnalysis', roles: ADMIN,
     children: [{ title: '统计分析', path: '/stat' }]
+  },
+  {
+    title: '审批流程', icon: 'Stamp', roles: ADMIN,
+    children: [
+      { title: '待办审批', path: '/workflow/todo' },
+      { title: '我发起的流程', path: '/workflow/started' },
+      { title: '流程定义', path: '/workflow/definitions' }
+    ]
   },
   {
     title: '系统管理', icon: 'Setting', roles: ADMIN,
@@ -112,7 +124,7 @@ const MENU_CONFIG = [
       { title: '参数配置', path: '/sys/configs', roles: SYS },
       { title: '登录日志', path: '/sys/logs/login', roles: SYS },
       { title: '操作日志', path: '/sys/logs/operation', roles: SYS },
-      { title: '考试异常日志', path: '/sys/logs/exam-abnormal', roles: ADMIN },
+      { title: '测试异常日志', path: '/sys/logs/exam-abnormal', roles: ADMIN },
       { title: '站内通知', path: '/sys/notices', roles: ADMIN }
     ]
   }

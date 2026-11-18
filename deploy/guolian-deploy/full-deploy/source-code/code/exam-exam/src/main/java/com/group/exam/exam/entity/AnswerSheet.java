@@ -47,7 +47,7 @@ public class AnswerSheet implements Serializable {
     @TableField(typeHandler = JsonbMapHandler.class)
     private Map<String, Object> paperSnapshot;
 
-    /** 进入考试时刻 */
+    /** 进入测试时刻 */
     private LocalDateTime startTime;
 
     /** 服务端计时锚点 = min(进入时刻+时长, 场次窗口结束) */

@@ -17,9 +17,10 @@
         :props="{ label: 'orgName', children: 'children' }"
         :expand-on-click-node="false"
         default-expand-all
+        @node-click="onNodeClick"
       >
         <template #default="{ data }">
-          <div class="custom-tree-node">
+          <div class="custom-tree-node" @contextmenu.prevent.stop="openCtxMenu(data, $event)">
             <span class="node-info">
               <span class="node-name">{{ data.orgName }}</span>
               <el-tag size="small" effect="plain">{{ orgTypeName(data.orgType) }}</el-tag>
@@ -47,6 +48,16 @@
         </template>
       </el-tree>
       <el-empty v-if="!loading && treeData.length === 0" description="暂无组织数据" />
+      <!-- 节点右键菜单（内容与行尾「⋯」下拉一致；fixed 定位，跟随鼠标） -->
+      <div v-show="ctxMenu.visible" class="ctx-menu" :style="{ left: ctxMenu.x + 'px', top: ctxMenu.y + 'px' }">
+        <div class="ctx-item" @click="onCtxCommand('add')">新增下级</div>
+        <div class="ctx-item" @click="onCtxCommand('edit')">编辑</div>
+        <div class="ctx-item" @click="onCtxCommand('toggleStatus')">{{ ctxMenu.data && ctxMenu.data.status === 1 ? '停用' : '启用' }}</div>
+        <div class="ctx-item" @click="onCtxCommand('moveUp')">上移</div>
+        <div class="ctx-item" @click="onCtxCommand('moveDown')">下移</div>
+        <div class="ctx-divider"></div>
+        <div class="ctx-item danger" @click="onCtxCommand('remove')">删除</div>
+      </div>
     </div>
 
     <!-- 新增/编辑单位 -->
@@ -94,7 +105,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { MoreFilled, Plus, Refresh, Sort } from '@element-plus/icons-vue'
 import { orgApi } from '../../api'
@@ -176,6 +187,13 @@ function toggleExpand() {
   Object.values(nodesMap).forEach((n) => {
     n.expanded = expandAll.value
   })
+}
+
+// 左键点击含下级的节点行：收起则展开、展开则收起（与点击三角符号效果一致）
+function onNodeClick(data, node) {
+  if (!node.isLeaf) {
+    node.expanded = !node.expanded
+  }
 }
 
 function resetForm() {
@@ -307,7 +325,52 @@ function handleCommand(cmd, data) {
   else if (cmd === 'moveDown') moveNode(data, 1)
 }
 
-onMounted(loadTree)
+// 节点右键菜单（内容与行尾「⋯」下拉一致）：右键弹出，点击任意处收起；
+// 鼠标离开源节点行、移到其他行上时自动收起（悬停在菜单本身不收起）
+const ctxMenu = reactive({ visible: false, x: 0, y: 0, data: null, sourceEl: null })
+
+function openCtxMenu(data, e) {
+  const w = 140
+  const h = 220
+  ctxMenu.data = data
+  ctxMenu.x = Math.min(e.clientX, window.innerWidth - w - 8)
+  ctxMenu.y = Math.min(e.clientY, window.innerHeight - h - 8)
+  ctxMenu.sourceEl = e.currentTarget ? e.currentTarget.closest('.el-tree-node') : null
+  ctxMenu.visible = true
+}
+
+function closeCtxMenu() {
+  ctxMenu.visible = false
+}
+
+// 菜单打开期间：鼠标既不在源节点行、也不在菜单上 → 自动收起（移开该行即消失）
+function onDocMouseMove(e) {
+  if (!ctxMenu.visible) return
+  const t = e.target
+  if (!(t instanceof Element)) return
+  if (t.closest('.ctx-menu')) return
+  const row = t.closest('.el-tree-node')
+  if (row && ctxMenu.sourceEl && row === ctxMenu.sourceEl) return
+  closeCtxMenu()
+}
+
+function onCtxCommand(cmd) {
+  const data = ctxMenu.data
+  closeCtxMenu()
+  if (data) handleCommand(cmd, data)
+}
+
+onMounted(() => {
+  loadTree()
+  document.addEventListener('click', closeCtxMenu)
+  document.addEventListener('contextmenu', closeCtxMenu)
+  document.addEventListener('mousemove', onDocMouseMove)
+})
+onBeforeUnmount(() => {
+  document.removeEventListener('click', closeCtxMenu)
+  document.removeEventListener('contextmenu', closeCtxMenu)
+  document.removeEventListener('mousemove', onDocMouseMove)
+})
 </script>
 
 <style scoped>
@@ -338,5 +401,35 @@ onMounted(loadTree)
   cursor: pointer;
   color: #606266;
   transform: rotate(90deg);
+}
+/* 节点右键菜单 */
+.ctx-menu {
+  position: fixed;
+  z-index: 3000;
+  min-width: 128px;
+  background: #fff;
+  border: 1px solid var(--el-border-color-light, #e4e7ed);
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  padding: 4px 0;
+}
+.ctx-item {
+  padding: 8px 16px;
+  font-size: 13px;
+  color: var(--el-text-color-regular, #606266);
+  cursor: pointer;
+  line-height: 1.4;
+}
+.ctx-item:hover {
+  background: var(--el-fill-color-light, #f5f7fa);
+  color: var(--el-color-primary, #409eff);
+}
+.ctx-item.danger:hover {
+  color: var(--el-color-danger, #f56c6c);
+}
+.ctx-divider {
+  height: 1px;
+  margin: 4px 0;
+  background: var(--el-border-color-lighter, #ebeef5);
 }
 </style>

@@ -36,9 +36,9 @@ __pycache__/
 *.pyo
 
 # 前端构建产物与依赖
-code-src/**/node_modules/
-code-src/**/dist/
-code-src/**/target/
+code/**/node_modules/
+code/**/dist/
+code/**/target/
 
 # IDE 与编辑器
 .idea/

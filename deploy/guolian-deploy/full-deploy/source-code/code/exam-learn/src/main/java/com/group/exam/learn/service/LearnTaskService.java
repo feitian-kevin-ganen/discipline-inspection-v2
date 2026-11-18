@@ -25,6 +25,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -185,6 +187,49 @@ public class LearnTaskService extends ServiceImpl<LearnTaskMapper, LearnTask> {
                         ((Number) row.get("total")).longValue(), ((Number) row.get("done")).longValue()});
             }
         }
+        // 平均进度（与用户端口径一致）：单人员进度 = 任务各资料 progress 均值（完成=100，无记录=0），
+        // 任务平均进度 = 各人员进度均值
+        Map<Long, BigDecimal> avgProgressMap = new HashMap<>();
+        if (!tasks.isEmpty()) {
+            List<Long> pageTaskIds = tasks.stream().map(LearnTask::getId).collect(Collectors.toList());
+            List<LearnTaskUser> assigneeRows = taskUserMapper.selectList(new QueryWrapper<LearnTaskUser>()
+                    .select("task_id", "user_id").in("task_id", pageTaskIds));
+            Set<Long> allUserIds = assigneeRows.stream().map(LearnTaskUser::getUserId).collect(Collectors.toSet());
+            Set<Long> allMatIds = new LinkedHashSet<>();
+            for (LearnTask t : tasks) {
+                if (t.getMaterialIds() != null) {
+                    allMatIds.addAll(t.getMaterialIds());
+                }
+            }
+            Map<String, LearnRecord> recMap = new HashMap<>();
+            if (!allUserIds.isEmpty() && !allMatIds.isEmpty()) {
+                for (LearnRecord r : recordService.list(new QueryWrapper<LearnRecord>()
+                        .select("user_id", "material_id", "progress")
+                        .in("user_id", allUserIds).in("material_id", allMatIds))) {
+                    recMap.put(r.getUserId() + ":" + r.getMaterialId(), r);
+                }
+            }
+            Map<Long, List<Long>> taskUsers = assigneeRows.stream().collect(Collectors.groupingBy(
+                    LearnTaskUser::getTaskId, Collectors.mapping(LearnTaskUser::getUserId, Collectors.toList())));
+            for (LearnTask t : tasks) {
+                List<Long> uids = taskUsers.getOrDefault(t.getId(), List.of());
+                List<Long> mids = t.getMaterialIds() == null ? List.of() : t.getMaterialIds();
+                if (uids.isEmpty() || mids.isEmpty()) {
+                    avgProgressMap.put(t.getId(), BigDecimal.ZERO);
+                    continue;
+                }
+                BigDecimal sum = BigDecimal.ZERO;
+                for (Long uid : uids) {
+                    BigDecimal userSum = BigDecimal.ZERO;
+                    for (Long mid : mids) {
+                        userSum = userSum.add(LearnRecordService.progressOf(recMap.get(uid + ":" + mid)));
+                    }
+                    sum = sum.add(userSum.divide(BigDecimal.valueOf(mids.size()), 2, RoundingMode.HALF_UP));
+                }
+                avgProgressMap.put(t.getId(),
+                        sum.divide(BigDecimal.valueOf(uids.size()), 1, RoundingMode.HALF_UP));
+            }
+        }
         // 目标单位名称 + 创建人姓名
         Set<Long> orgIds = new LinkedHashSet<>();
         Set<Long> creatorIds = new LinkedHashSet<>();
@@ -217,6 +262,7 @@ public class LearnTaskService extends ServiceImpl<LearnTaskMapper, LearnTask> {
             long[] stat = stats.getOrDefault(t.getId(), new long[]{0, 0});
             item.put("assigneeCount", stat[0]);
             item.put("doneCount", stat[1]);
+            item.put("avgProgress", avgProgressMap.getOrDefault(t.getId(), BigDecimal.ZERO));
             item.put("createdBy", creatorNames.get(t.getCreateBy()));
             item.put("createdTime", t.getCreateTime());
             return item;

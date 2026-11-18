@@ -5,7 +5,7 @@ import lombok.Data;
 import java.io.Serializable;
 
 /**
- * 进入考试（TAKE-02）
+ * 进入测试（TAKE-02）
  */
 @Data
 public class EnterExamReq implements Serializable {

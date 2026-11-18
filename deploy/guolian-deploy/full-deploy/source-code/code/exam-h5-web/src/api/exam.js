@@ -1,11 +1,11 @@
 import service from '../utils/request'
 
-// TAKE-01 待考/历史考试列表
+// TAKE-01 待考/历史测试列表
 export function getExams(params) {
   return service.get('/app/exams', { params })
 }
 
-// TAKE-02 进入考试（须知确认）
+// TAKE-02 进入测试（须知确认）
 export function enterExam(examId, body) {
   return service.post(`/app/exams/${examId}/enter`, body)
 }

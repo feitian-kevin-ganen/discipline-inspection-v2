@@ -34,7 +34,7 @@ import java.util.Map;
 import static com.group.exam.exam.controller.PaperController.requireAdmin;
 
 /**
- * 考试场次与下发（EXAM-01~14）
+ * 测试场次与下发（EXAM-01~14）
  */
 @RestController
 @RequestMapping("/api/v1/admin/exams")
@@ -82,7 +82,7 @@ public class ExamAdminController {
         }
     }
 
-    /** EXAM-02 创建考试场次 */
+    /** EXAM-02 创建测试场次 */
     @PostMapping
     public Result<Map<String, Object>> create(@RequestBody ExamSaveReq req) {
         requireAdmin();
@@ -153,7 +153,7 @@ public class ExamAdminController {
         return Result.ok(candidateService.remove(examId, req.getUserIds()));
     }
 
-    /** EXAM-11 推送考试通知 */
+    /** EXAM-11 推送测试通知 */
     @PostMapping("/{examId}/notify")
     public Result<Map<String, Object>> notify(@PathVariable Long examId, @RequestBody(required = false) ExamNotifyReq req) {
         requireAdmin();
@@ -162,7 +162,7 @@ public class ExamAdminController {
                 req == null ? null : req.getUserIds()));
     }
 
-    /** EXAM-12 延长考试时间 */
+    /** EXAM-12 延长测试时间 */
     @PutMapping("/{examId}/extend")
     public Result<Map<String, Object>> extend(@PathVariable Long examId, @RequestBody ExamExtendReq req) {
         requireAdmin();

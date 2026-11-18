@@ -3,8 +3,8 @@
     <el-card shadow="never">
       <template #header><span class="card-title">我的成绩</span></template>
       <el-table :data="list" v-loading="loading">
-        <el-table-column prop="examName" label="考试名称" min-width="220" show-overflow-tooltip />
-        <el-table-column prop="examTime" label="考试时间" width="170" />
+        <el-table-column prop="examName" label="测试名称" min-width="220" show-overflow-tooltip />
+        <el-table-column prop="examTime" label="测试时间" width="170" />
         <el-table-column label="得分" width="130" align="center">
           <template #default="{ row }">
             <span class="score" :class="{ fail: !row.passed }">{{ row.myScore }}</span>
