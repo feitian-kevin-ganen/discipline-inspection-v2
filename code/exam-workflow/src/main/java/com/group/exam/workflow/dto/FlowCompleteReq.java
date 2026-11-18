@@ -10,4 +10,7 @@ public class FlowCompleteReq {
 
     /** 审批意见；驳回时必填 */
     private String comment;
+
+    /** 抄送人用户 ID（可选） */
+    private java.util.List<Long> ccUserIds;
 }

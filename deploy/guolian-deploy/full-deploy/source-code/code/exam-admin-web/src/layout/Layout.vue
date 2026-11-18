@@ -115,7 +115,12 @@ const MENU_CONFIG = [
     children: [
       { title: '待办任务', path: '/workflow/todo' },
       { title: '我发起的流程', path: '/workflow/started' },
+      { title: '抄送我的', path: '/workflow/copy' },
       { title: '流程定义', path: '/workflow/definitions' },
+      { title: '流程设计器', path: '/workflow/designer' },
+      { title: '表单管理', path: '/workflow/forms' },
+      { title: '数据源管理', path: '/workflow/dblinks' },
+      { title: '消息注册', path: '/workflow/messages' },
       { title: '流程监控', path: '/workflow/monitor' }
     ]
   },

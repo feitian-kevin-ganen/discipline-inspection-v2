@@ -43,7 +43,12 @@ const routes = [
       // 流程中心
       { path: 'workflow/todo', name: 'FlowTodo', component: () => import('../views/workflow/TodoList.vue'), meta: { title: '待办任务', roles: ADMIN_ROLES } },
       { path: 'workflow/started', name: 'FlowStarted', component: () => import('../views/workflow/MyStarted.vue'), meta: { title: '我发起的流程', roles: ADMIN_ROLES } },
+      { path: 'workflow/copy', name: 'FlowCopy', component: () => import('../views/workflow/CopyList.vue'), meta: { title: '抄送我的', roles: ADMIN_ROLES } },
       { path: 'workflow/definitions', name: 'FlowDefinitions', component: () => import('../views/workflow/Definitions.vue'), meta: { title: '流程定义', roles: ADMIN_ROLES } },
+      { path: 'workflow/designer', name: 'FlowDesigner', component: () => import('../views/workflow/Designer.vue'), meta: { title: '流程设计器', roles: ADMIN_ROLES } },
+      { path: 'workflow/forms', name: 'FlowForms', component: () => import('../views/workflow/Forms.vue'), meta: { title: '表单管理', roles: ADMIN_ROLES } },
+      { path: 'workflow/dblinks', name: 'FlowDblinks', component: () => import('../views/workflow/DataSources.vue'), meta: { title: '数据源管理', roles: ADMIN_ROLES } },
+      { path: 'workflow/messages', name: 'FlowMessages', component: () => import('../views/workflow/Messages.vue'), meta: { title: '消息注册', roles: ADMIN_ROLES } },
       { path: 'workflow/monitor', name: 'FlowMonitor', component: () => import('../views/workflow/Monitor.vue'), meta: { title: '流程监控', roles: ADMIN_ROLES } },
       // 系统管理
       { path: 'sys/configs', name: 'SysConfigs', component: () => import('../views/sys/ConfigList.vue'), meta: { title: '参数配置', roles: SYS_ROLES } },

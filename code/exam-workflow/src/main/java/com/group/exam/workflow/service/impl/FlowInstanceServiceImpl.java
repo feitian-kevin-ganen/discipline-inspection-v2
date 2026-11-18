@@ -16,6 +16,7 @@ import com.group.exam.workflow.dto.FlowTaskVO;
 import com.group.exam.workflow.entity.FlowBizInstance;
 import com.group.exam.workflow.mapper.FlowBizInstanceMapper;
 import com.group.exam.workflow.service.FlowInstanceService;
+import com.group.exam.workflow.service.WorkflowCenterService;
 import com.group.exam.workflow.spi.FlowStatusCallback;
 import com.group.exam.workflow.spi.FlowUserNameResolver;
 import com.group.exam.workflow.support.FlowContext;
@@ -64,6 +65,7 @@ public class FlowInstanceServiceImpl implements FlowInstanceService {
     /** key = Spring Bean 名称 = bizType */
     private final Map<String, FlowStatusCallback> callbacks;
     private final FlowUserNameResolver userNameResolver;
+    private final WorkflowCenterService workflowCenterService;
 
     public FlowInstanceServiceImpl(RuntimeService runtimeService,
                                    TaskService taskService,
@@ -71,7 +73,8 @@ public class FlowInstanceServiceImpl implements FlowInstanceService {
                                    HistoryService historyService,
                                    FlowBizInstanceMapper mapper,
                                    Map<String, FlowStatusCallback> callbacks,
-                                   ObjectProvider<FlowUserNameResolver> userNameResolverProvider) {
+                                   ObjectProvider<FlowUserNameResolver> userNameResolverProvider,
+                                   WorkflowCenterService workflowCenterService) {
         this.runtimeService = runtimeService;
         this.taskService = taskService;
         this.repositoryService = repositoryService;
@@ -79,6 +82,7 @@ public class FlowInstanceServiceImpl implements FlowInstanceService {
         this.mapper = mapper;
         this.callbacks = callbacks == null ? Map.of() : callbacks;
         this.userNameResolver = userNameResolverProvider.getIfAvailable();
+        this.workflowCenterService = workflowCenterService;
     }
 
     // ------------------------------------------------------------------ 发起
@@ -158,20 +162,26 @@ public class FlowInstanceServiceImpl implements FlowInstanceService {
         if (task == null) {
             throw new BizException(ErrorCode.NOT_FOUND, "审批任务不存在或已被处理");
         }
-        doComplete(task, approve, comment);
+        doComplete(task, approve, comment, null);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void completeTask(String taskId, boolean approve, String comment) {
+        completeTask(taskId, approve, comment, null);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void completeTask(String taskId, boolean approve, String comment, List<Long> ccUserIds) {
         Task task = taskService.createTaskQuery().taskId(taskId).singleResult();
         if (task == null) {
             throw new BizException(ErrorCode.NOT_FOUND, "审批任务不存在或已被处理");
         }
-        doComplete(task, approve, comment);
+        doComplete(task, approve, comment, ccUserIds);
     }
 
-    private void doComplete(Task task, boolean approve, String comment) {
+    private void doComplete(Task task, boolean approve, String comment, List<Long> ccUserIds) {
         LoginUser user = SecurityUtils.getLoginUser();
         if (!approve && !StringUtils.hasText(comment)) {
             throw new BizException(ErrorCode.PARAM_ERROR, "驳回时审批意见必填");
@@ -204,6 +214,11 @@ public class FlowInstanceServiceImpl implements FlowInstanceService {
             }
         } finally {
             FlowContext.clear();
+        }
+        if (ccUserIds != null && !ccUserIds.isEmpty()) {
+            FlowBizInstance record = findByProcInstId(task.getProcessInstanceId());
+            workflowCenterService.addCopies(task.getProcessInstanceId(), task.getTaskDefinitionKey(),
+                    task.getName(), record == null ? null : record.getTitle(), user.getUserId(), ccUserIds);
         }
     }
 

@@ -61,6 +61,23 @@
             placeholder="驳回时必须填写原因"
           />
         </el-form-item>
+        <el-form-item label="抄送人">
+          <el-select
+            v-model="form.ccUserIds"
+            multiple
+            filterable
+            clearable
+            placeholder="可选择多人，办理完成后推送抄送"
+            style="width: 100%"
+          >
+            <el-option
+              v-for="u in userOptions"
+              :key="u.userId"
+              :label="`${u.userName}（${u.jobNo || u.userId}）`"
+              :value="u.userId"
+            />
+          </el-select>
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="handleVisible = false">取消</el-button>
@@ -77,7 +94,7 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { workflowApi } from '../../api'
+import { userApi, workflowApi } from '../../api'
 import { fmtTime } from '../../utils/format'
 import { bizLabel } from '../../utils/workflow'
 import FlowDetailPanel from '../../components/workflow/FlowDetailPanel.vue'
@@ -91,7 +108,8 @@ const handleVisible = ref(false)
 const submitting = ref(false)
 const progressVisible = ref(false)
 const current = ref({})
-const form = reactive({ approve: true, comment: '' })
+const form = reactive({ approve: true, comment: '', ccUserIds: [] })
+const userOptions = ref([])
 
 const filteredList = computed(() => {
   const keyword = query.taskName.trim()
@@ -118,12 +136,24 @@ function openHandle(row) {
   current.value = row
   form.approve = true
   form.comment = ''
+  form.ccUserIds = []
   handleVisible.value = true
+  loadUsers()
 }
 
 function openProgress(row) {
   current.value = row
   progressVisible.value = true
+}
+
+async function loadUsers() {
+  if (userOptions.value.length) return
+  try {
+    const data = await userApi.page({ pageNum: 1, pageSize: 500 })
+    userOptions.value = data?.list || data?.records || []
+  } catch (e) {
+    userOptions.value = []
+  }
 }
 
 async function submit() {
@@ -133,7 +163,11 @@ async function submit() {
   }
   submitting.value = true
   try {
-    await workflowApi.complete(current.value.taskId, { approve: form.approve, comment: form.comment.trim() })
+    await workflowApi.complete(current.value.taskId, {
+      approve: form.approve,
+      comment: form.comment.trim(),
+      ccUserIds: form.ccUserIds
+    })
     ElMessage.success('审批已提交')
     handleVisible.value = false
     loadList()

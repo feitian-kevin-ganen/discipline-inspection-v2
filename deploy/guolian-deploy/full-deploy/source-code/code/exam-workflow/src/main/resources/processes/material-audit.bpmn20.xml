@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+             xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+             xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
              xmlns:flowable="http://flowable.org/bpmn"
              targetNamespace="http://exam.group.com/workflow">
   <process id="material_audit" name="学习资料审核" isExecutable="true">
@@ -12,4 +15,25 @@
     <sequenceFlow id="flow2" sourceRef="auditTask" targetRef="endEvent"/>
     <endEvent id="endEvent" name="审核结束"/>
   </process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_material_audit">
+    <bpmndi:BPMNPlane id="BPMNPlane_material_audit" bpmnElement="material_audit">
+      <bpmndi:BPMNShape id="startEvent_di" bpmnElement="startEvent">
+        <dc:Bounds x="172" y="102" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="auditTask_di" bpmnElement="auditTask">
+        <dc:Bounds x="260" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="endEvent_di" bpmnElement="endEvent">
+        <dc:Bounds x="412" y="102" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow1_di" bpmnElement="flow1">
+        <di:waypoint x="208" y="120"/>
+        <di:waypoint x="260" y="120"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow2_di" bpmnElement="flow2">
+        <di:waypoint x="360" y="120"/>
+        <di:waypoint x="412" y="120"/>
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
 </definitions>

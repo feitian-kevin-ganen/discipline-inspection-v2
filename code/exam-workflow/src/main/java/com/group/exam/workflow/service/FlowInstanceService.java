@@ -35,6 +35,9 @@ public interface FlowInstanceService {
     /** 按任务 id 办理 */
     void completeTask(String taskId, boolean approve, String comment);
 
+    /** 按任务 id 办理，并抄送指定用户 */
+    void completeTask(String taskId, boolean approve, String comment, List<Long> ccUserIds);
+
     List<FlowTaskVO> todoTasks();
 
     List<FlowTaskVO> doneTasks();

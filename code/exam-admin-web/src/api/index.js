@@ -170,5 +170,35 @@ export const workflowApi = {
   allInstances: (params) => request.get('/workflow/instance/all', { params }),
   stopInstance: (procInstId, data) => request.post(`/workflow/instance/${procInstId}/stop`, data),
   diagramData: (procInstId) => request.get(`/workflow/instance/${procInstId}/diagram-data`),
-  detail: (procInstId) => request.get(`/workflow/instance/${procInstId}`)
+  detail: (procInstId) => request.get(`/workflow/instance/${procInstId}`),
+  // 抄送
+  myCopies: (params) => request.get('/workflow/copy/my', { params }),
+  unreadCopyCount: () => request.get('/workflow/copy/unread-count'),
+  markCopyRead: (id) => request.post(`/workflow/copy/${id}/read`),
+  markAllCopyRead: () => request.post('/workflow/copy/read-all'),
+  // 表单
+  formList: (params) => request.get('/workflow/form/list', { params }),
+  saveForm: (data) => request.post('/workflow/form', data),
+  deleteForm: (id) => request.delete(`/workflow/form/${id}`),
+  setFormStatus: (id, status) => request.post(`/workflow/form/${id}/status`, { status }),
+  // 数据源
+  dblinkList: (params) => request.get('/workflow/dblink/list', { params }),
+  saveDblink: (data) => request.post('/workflow/dblink', data),
+  deleteDblink: (id) => request.delete(`/workflow/dblink/${id}`),
+  testDblink: (data) => request.post('/workflow/dblink/test', data),
+  // 消息注册
+  messageList: () => request.get('/workflow/message/list'),
+  saveMessage: (data) => request.post('/workflow/message', data),
+  deleteMessage: (id) => request.delete(`/workflow/message/${id}`),
+  triggerMessage: (data) => request.post('/workflow/message/trigger', data),
+  // 超时与催办
+  taskExtList: (params) => request.get('/workflow/monitor/task-ext', { params }),
+  saveTaskExt: (data) => request.post('/workflow/monitor/task-ext', data),
+  deleteTaskExt: (id) => request.delete(`/workflow/monitor/task-ext/${id}`),
+  timeoutTasks: (params) => request.get('/workflow/monitor/timeout', { params }),
+  urge: (taskId) => request.post(`/workflow/monitor/urge/${taskId}`),
+  // 设计器
+  designerList: () => request.get('/workflow/designer/list'),
+  designerXml: (key) => request.get(`/workflow/designer/xml/${key}`),
+  deployDesigner: (data) => request.post('/workflow/designer/deploy', data)
 }
