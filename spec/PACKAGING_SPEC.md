@@ -10,18 +10,32 @@
 ├── spec/                       # 开发 / 打包 / 本机运行规约
 ├── deploy/
 │   ├── local-deploy/           # 本机运行目录：jar、构建后前端、本机 config、logs、run（不入库）
-│   └── guolian-deploy/         # 目标机发布历史
+│   └── guolian-deploy/         # 测试机发布历史
 │       ├── full-deploy/        # 全量包：source-code/ + deploy-files/
 │       └── incremental-deploy/ # 增量包
 └── guolian/
     ├── test/                   # 国联测试环境
-    │   └── project-files/      # 目标机配置相关的源码与配置文件
+    │   └── project-files/      # 测试机配置相关的源码与配置文件
     └── prd/                    # 国联生产环境（生产配置申请到之前保持为空）
 ```
 
-- `guolian/test/project-files/` 只放**目标机配置相关的源码与配置文件**，不放编译产物、发布包。
+- `guolian/test/project-files/` 只放**测试机配置相关的源码与配置文件**，不放编译产物、发布包。
 - `guolian/test/` 代表国联测试环境；`guolian/prd/` 代表生产环境，生产配置申请到后再落内容。
-- 本机运行目录与目标机发布目录严格分离：本机用 `deploy/local-deploy/`，目标机包只从 `deploy/guolian-deploy/` 产出。
+- 本机运行目录与测试机发布目录严格分离：本机用 `deploy/local-deploy/`，测试机包只从 `deploy/guolian-deploy/` 产出。
+
+### 0.1 机器与环境角色（术语定义）
+
+本文档及后续任务中的“测试机”，统一指**国联测试环境的部署机**；**生产机**是国联生产环境的机器，尚未申请。
+
+| 角色 | 机器 | 关键信息 | 对应目录 / 配置基线 |
+|------|------|----------|---------------------|
+| 本机（开发打包机） | `10.110.40.160` | 只做开发、构建、本机运行验证，不是发布对象 | 运行目录 `deploy/local-deploy/`，规约 `spec/LOCAL_RUN_SPEC.md` |
+| 测试机（国联测试环境） | `10.64.16.29` | staging `/root/fully-deploy/AIExamK3`、live `/root/AIExamK3`、LB `/data/InforSuiteLB`、DB `10.64.16.14:4886`、OSS `10.10.250.100:8333` | 配置基线 `guolian/test/project-files/`，打包产物 `deploy/guolian-deploy/` |
+| 生产机（国联生产环境） | 待申请 | 申请到之前 `guolian/prd/` 保持为空，禁止用测试机配置冒充生产配置 | `guolian/prd/` |
+
+- 历史文档与历史发布包（`*.tar.gz`、`migration.md` 既有记录）里的“目标机”与本文“测试机”是同一台机器（`10.64.16.29`）；自本版起统一称“测试机”。
+- “发布到测试机”的任务，配置一律取 `guolian/test/project-files/` 与本文第 5 节，**不得使用本机配置**。
+- 生产环境发布流程待 `guolian/prd/` 落地生产配置后另行补充，当前不执行。
 
 ## 1. 全量包（full-deploy）
 
@@ -35,9 +49,9 @@
 
 ```text
 full-deploy/
-├── source-code/          # 目标机部署所需的源代码（即代码工程）
+├── source-code/          # 测试机部署所需的源代码（即代码工程）
 │   └── code/             # 后端、前端、脚本等源码
-└── deploy-files/         # 目标机发布物：全量压缩包 + 部署文本资产
+└── deploy-files/         # 测试机发布物：全量压缩包 + 部署文本资产
     ├── full-deploy-{yyyyMMdd}-v{x}.tar.gz
     ├── README.md         # 部署说明（打包时复制进压缩包根目录）
     ├── RELEASE.md        # 发布说明（打包时复制进压缩包根目录）
@@ -66,9 +80,9 @@ AIExamK3/
 | `deploy-files/README.md` | `deploy-files` | 发布包内 `README.md` 的权威副本，打包时复制进压缩包根目录。 |
 | `deploy-files/scripts/` | `deploy-files` | 发布包内 `scripts/` 的权威副本（`start_all.sh`、`stop_all.sh`、`backup.sh`、`deploy_release.sh`、`verify_*.py` 等）。 |
 | `deploy-files/RELEASE.md` | `deploy-files` | 发布包内 `RELEASE.md` 的权威副本（staging → live 发布说明），打包时复制进压缩包根目录。 |
-| `deploy-files/full-deploy-*.tar.gz` | `deploy-files` | 目标机全量发布压缩包，解压后顶层为 `AIExamK3/`。 |
+| `deploy-files/full-deploy-*.tar.gz` | `deploy-files` | 测试机全量发布压缩包，解压后顶层为 `AIExamK3/`。 |
 | `AIExamK3/app/` | 压缩包内 | 后端可执行 jar（`exam-server.jar`）。 |
-| `AIExamK3/config/` | 压缩包内 | 目标环境外置配置（如 `application-polardb.yml`）。 |
+| `AIExamK3/config/` | 压缩包内 | 测试机环境外置配置（如 `application-polardb.yml`）。 |
 | `AIExamK3/data/` | 压缩包内 | 运行数据，如 `minio/exam-files/`（主存储在远端 OSS，通常为空）。 |
 | `AIExamK3/docs/` | 压缩包内 | 需求、设计、迁移说明等项目资料。 |
 | `AIExamK3/logs/` | 压缩包内 | 预留运行日志目录。 |
@@ -76,13 +90,13 @@ AIExamK3/
 | `AIExamK3/run/` | 压缩包内 | 预留 PID 目录。 |
 | `AIExamK3/scripts/` | 压缩包内 | 启动、停止、备份、发布、迁移、校验等脚本。 |
 | `AIExamK3/web/` | 压缩包内 | 三端前端构建产物（`admin/`、`user/`、`h5/`）。 |
-| `AIExamK3/README.md` | 压缩包内 | 目标机部署说明。 |
+| `AIExamK3/README.md` | 压缩包内 | 测试机部署说明。 |
 | `AIExamK3/RELEASE.md` | 压缩包内 | 发布说明（staging → live 流程、回滚、LB 处置）。 |
 
 ### 1.4 打包要求
 
-- 全量包必须包含**最新编译结果**：后端 `mvn clean package`、前端 `npm run build:target`（三端必须带目标机 base，见 5.7）。
-- 包内**不得出现 nginx 配置或 nginx 启动逻辑**：目标机反向代理是 InforSuiteLB。
+- 全量包必须包含**最新编译结果**：后端 `mvn clean package`、前端 `npm run build:target`（三端必须带测试机 base，见 5.7）。
+- 包内**不得出现 nginx 配置或 nginx 启动逻辑**：测试机反向代理是 InforSuiteLB。
 - 源码以**展开目录**形式存放，不再保留 `code-src.tar.gz`。
 - 运行内容必须打成单一压缩包：
   - 命名：`full-deploy-{yyyyMMDD}-v{x}.tar.gz`
@@ -94,7 +108,7 @@ AIExamK3/
 
 ### 1.5 源码同步要求
 
-**每次发布打包目标机全量包时，必须同步更新并推送远端 `deploy/guolian-deploy/full-deploy/source-code/` 目录。**
+**每次发布打包测试机全量包时，必须同步更新并推送远端 `deploy/guolian-deploy/full-deploy/source-code/` 目录。**
 
 具体操作：
 
@@ -185,19 +199,19 @@ deploy-increment-YYYYMMDD-vX.tar.gz
 
 - 全量包日期
 - 增量包文件名及对应变更内容
-- 目标机部署根目录（`/root/AIExamK3`）
+- 测试机部署根目录（`/root/AIExamK3`）
 
 ---
 
-## 5. 目标机环境配置
+## 5. 测试机环境配置
 
-> 以下配置来自最新增量包 `deploy-increment-merged-20261013.tar.gz`，是打包与发布时必须对齐的目标环境。
+> 以下配置来自最新增量包 `deploy-increment-merged-20261013.tar.gz`，是打包与发布时必须对齐的测试机环境。
 
 ### 5.1 基础信息
 
 | 项目 | 配置值 |
 |------|--------|
-| 目标机器 IP | `10.64.16.29` |
+| 测试机 IP | `10.64.16.29` |
 | staging（全量包解压目录） | `/root/fully-deploy/AIExamK3` |
 | live（在运项目目录） | `/root/AIExamK3` |
 | 负载均衡根目录 | `/data/InforSuiteLB`（同级的 `/data/rds-install` 是数据库安装目录，**不得改动**） |
@@ -222,7 +236,7 @@ deploy-increment-YYYYMMDD-vX.tar.gz
 
 ### 5.4 OSS（S3 兼容对象存储）
 
-> 目标机的文件存储是 **OSS**，不是本机 MinIO。应用仍用 MinIO SDK（S3 协议）访问，配置前缀 `exam.minio.*` 为历史命名，**值指向 OSS 即可，不需要改键名**。
+> 测试机的文件存储是 **OSS**，不是本机 MinIO。应用仍用 MinIO SDK（S3 协议）访问，配置前缀 `exam.minio.*` 为历史命名，**值指向 OSS 即可，不需要改键名**。
 
 | 项目 | 配置值 |
 |------|--------|
@@ -251,7 +265,7 @@ deploy-increment-YYYYMMDD-vX.tar.gz
 
 ### 5.7 反向代理与端口对照（InforSuiteLB，不是 Nginx）
 
-> **目标机没有 nginx**。三端静态资源与 `/api/` 反代由 **InforSuiteLB** 承载，安装目录 `/data/InforSuiteLB`。
+> **测试机没有 nginx**。三端静态资源与 `/api/` 反代由 **InforSuiteLB** 承载，安装目录 `/data/InforSuiteLB`。
 
 **统一入口 `6003` 单端口**：三端前端 + API 反代全部收敛到一个端口，按路径前缀路由（历史上曾是 6009/6002/6001 三个端口，已废弃）。
 
@@ -267,28 +281,28 @@ deploy-increment-YYYYMMDD-vX.tar.gz
 | `80` | 中创 LB 管控平台 | `/api`、`/console` | **与业务无关**，不参与发布验证 |
 
 - `6000` 是 Chrome 受限端口（`ERR_UNSAFE_PORT`），不可用作入口。
-- 前端构建必须带 base：`npm run build:target`（admin `--base=/mgmt/`、user `--base=/learning-web/`、h5 `--base=/learning-h5/`），路由使用 `createWebHistory(import.meta.env.BASE_URL)`。用默认 `npm run build` 打出的 `/assets/...` 在目标机会白屏。
+- 前端构建必须带 base：`npm run build:target`（admin `--base=/mgmt/`、user `--base=/learning-web/`、h5 `--base=/learning-h5/`），路由使用 `createWebHistory(import.meta.env.BASE_URL)`。用默认 `npm run build` 打出的 `/assets/...` 在测试机会白屏。
 - 每个 `location` 下 `try_files $uri $uri/ /<base>/index.html` 做 SPA 回退；入口 `index.html` 加 `Cache-Control: no-store`，hash 静态资源长缓存。
 - **`web/sso/index.html` 是 LB 直接 alias 的独立页面，不由三端构建产出**。它不属于 Vite 构建物，打全量包时若仓库内没有该目录，必须在 `UPDATE.md` 说明，并由 `deploy_release.sh apply` **保留** live 上已有的 `web/sso/`（`web` 的 `--delete` 同步必须排除 `sso/`），否则 SSO 入口 404。
 
-- 前端构建必须带 base：`npm run build:target`（admin `--base=/mgmt/`、user `--base=/learning-web/`、h5 `--base=/learning-h5/`），路由使用 `createWebHistory(import.meta.env.BASE_URL)`。用默认 `npm run build` 打出的 `/assets/...` 在目标机会白屏。
+- 前端构建必须带 base：`npm run build:target`（admin `--base=/mgmt/`、user `--base=/learning-web/`、h5 `--base=/learning-h5/`），路由使用 `createWebHistory(import.meta.env.BASE_URL)`。用默认 `npm run build` 打出的 `/assets/...` 在测试机会白屏。
 - LB 主配置：`/data/InforSuiteLB/conf/InforSuiteLB.conf`；站点配置：`/data/InforSuiteLB/conf/discipline-inspection.conf`（历史文件名 `cra.conf`，已改名）。
 - 站点配置里的静态目录必须指向 live：`/root/AIExamK3/web/{admin,user,h5}`，不是 staging。
 - LB 可执行：`/data/InforSuiteLB/sbin/InforSuiteLB`；测试配置 `-p <LB_HOME> -c <conf> -t`，重载 `-s reload`。
 - 增量包只有在**确实下发 LB 配置变更**时才包含 `lb/conf/`，并在 `UPDATE.md` 写明测试与重载命令。
-- 对象存储：目标机为 OSS（S3 兼容，`http://10.10.250.100:8333`，bucket `exam-files`）；`middleware/minio`、`data/minio` 只是本机兜底资产，`start_all.sh` 不会在目标机启动本地 MinIO。
-- 目标机数据库客户端：`/root/migration/tools/mysql/mysql.sh`，备份优先使用同目录 `bin/mysqldump`。
+- 对象存储：测试机为 OSS（S3 兼容，`http://10.10.250.100:8333`，bucket `exam-files`）；`middleware/minio`、`data/minio` 只是本机兜底资产，`start_all.sh` 不会在测试机启动本地 MinIO。
+- 测试机数据库客户端：`/root/migration/tools/mysql/mysql.sh`，备份优先使用同目录 `bin/mysqldump`。
 
 ### 5.8 配置变更说明
 
-- 目标机配置以 `deploy-files/config/application-polardb.yml` 为准。
-- 每次发布前必须核对该文件与目标机实际环境是否一致；不一致时先更新配置再打包。
+- 测试机配置以 `deploy-files/config/application-polardb.yml` 为准。
+- 每次发布前必须核对该文件与测试机实际环境是否一致；不一致时先更新配置再打包。
 - `source-code/code/exam-server/src/main/resources/application.yml` 和 `source-code/code/config/application-polardb.yml` 必须与 `deploy-files/config/application-polardb.yml` 保持同步。
-- **注意**：`source-code/code/exam-server/src/main/resources/application.yml` 是**目标机配置**（MySQL/PolarDB + 目标 Redis/OSS），不是本机开发配置。用 `rsync code/ → source-code/code/` 同步源码后，必须把该文件恢复为目标机版本，禁止把本机 PostgreSQL 配置带进 `source-code/`。
+- **注意**：`source-code/code/exam-server/src/main/resources/application.yml` 是**测试机配置**（MySQL/PolarDB + 目标 Redis/OSS），不是本机开发配置。用 `rsync code/ → source-code/code/` 同步源码后，必须把该文件恢复为测试机版本，禁止把本机 PostgreSQL 配置带进 `source-code/`。
 
 ### 5.9 发布流程（staging → live）
 
-目标机采用**双目录模型**：全量包与增量包一律先落到 staging，再由发布脚本同步到 live。
+测试机采用**双目录模型**：全量包与增量包一律先落到 staging，再由发布脚本同步到 live。
 
 | 路径 | 角色 | 谁能写 |
 |------|------|--------|
@@ -297,7 +311,7 @@ deploy-increment-YYYYMMDD-vX.tar.gz
 | `/data/InforSuiteLB` | 负载均衡 | 仅 `deploy_release.sh lb`（改站点配置名 + reload） |
 | `/data/rds-install` | 数据库安装目录 | **不改动** |
 
-标准命令（包内 `scripts/deploy_release.sh`，目标机 root 执行）：
+标准命令（包内 `scripts/deploy_release.sh`，测试机 root 执行）：
 
 ```bash
 # 全量包：先解压到 staging

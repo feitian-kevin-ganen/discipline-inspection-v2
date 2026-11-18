@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Map;
 
 /**
- * 本机模拟国联门户登录接口（profile=local，目标机不注册）。
+ * 本机模拟国联门户登录接口（profile=local，测试机不注册）。
  */
 @RestController
 @RequestMapping("/api/v1/portal")

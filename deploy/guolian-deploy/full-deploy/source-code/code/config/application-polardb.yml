@@ -49,7 +49,7 @@ exam:
     secret: 9f4c2a7b8d1e3f5061728394a5b6c7d8e9f0a1b2c3d4e5f60718293a4b5c6d7e8
     access-expire-seconds: 43200
     refresh-expire-seconds: 604800
-  # AI 辅助生题（国联集团模型平台，OpenAI 兼容协议；目标机走内网网关 http://10.64.251.169:4000）
+  # AI 辅助生题（国联集团模型平台，OpenAI 兼容协议；测试机走内网网关 http://10.64.251.169:4000）
   ai-gen:
     # model=真实大模型；mock=本地模拟生成（无 key 环境/演示）
     mode: model

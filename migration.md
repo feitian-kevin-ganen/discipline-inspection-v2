@@ -15,7 +15,7 @@
 
 > **关于 PolarDB 版本**：需求指定 `Polardb for Mysql 8.0.32-X-Cluster-8.4.20`。经核实，`8.4.20` 仅为阿里云商业版（PolarDB-X 企业版云服务）的内核版本，开源渠道不提供下载；开源可获取的最新版本为 **PolarDB-X v2.4.2（DN 引擎 8.4.19）**，`SELECT version()` 返回 `8.0.32-X-Cluster-8.4.19-20250825`，与 8.4.20 同属 8.0.32 协议线，完全兼容。本次按开源最新版部署。
 
-## 1. 目标机勘察结论
+## 1. 测试机勘察结论
 
 ```
 OS:      Kylin Linux Advanced Server V10 (Tercel), kernel 4.19.90, x86_64
@@ -61,7 +61,7 @@ exam:
   --spring.config.additional-location=file:/root/CRA/config/
 ```
 
-## 3. PolarDB-X 安装（目标机）
+## 3. PolarDB-X 安装（测试机）
 
 官方途径为 PXD 工具（pip 包），经两处适配后在麒麟 V10 成功部署：
 
@@ -117,7 +117,7 @@ FLUSH PRIVILEGES;"
 | numeric(p,s) | DECIMAL(p,s) |
 | 唯一约束 | 保留；普通二级索引因数据量小不迁移 |
 
-执行（从源机直接连目标库，无需在目标机装 Python 依赖）：
+执行（从源机直接连目标库，无需在测试机装 Python 依赖）：
 
 ```bash
 python3 pg_to_mysql.py \
@@ -131,7 +131,7 @@ python3 pg_to_mysql.py \
 
 ## 5. Redis 迁移
 
-目标机已有 redis-server 4.0.11，直接以独立配置运行：
+测试机已有 redis-server 4.0.11，直接以独立配置运行：
 
 ```bash
 nohup /usr/bin/redis-server --port 6379 --bind 127.0.0.1 \
@@ -156,7 +156,7 @@ nohup /root/CRA/middleware/minio server /root/CRA/data/minio \
 
 ## 7. 前端部署（Nginx）
 
-三端在源机构建产物（`npm run build`），拷贝至 `/root/CRA/web/{admin,user,h5}`，由目标机自带 nginx 1.18 托管。配置 `/etc/nginx/conf.d/cra.conf`（随包 `/root/CRA/scripts/nginx-cra.conf`）：每个端口一个 server 块，`/api/` 反代 `127.0.0.1:8088`，`try_files ... /index.html` 支持 SPA 路由，`client_max_body_size 500m` 支持视频上传。
+三端在源机构建产物（`npm run build`），拷贝至 `/root/CRA/web/{admin,user,h5}`，由测试机自带 nginx 1.18 托管。配置 `/etc/nginx/conf.d/cra.conf`（随包 `/root/CRA/scripts/nginx-cra.conf`）：每个端口一个 server 块，`/api/` 反代 `127.0.0.1:8088`，`try_files ... /index.html` 支持 SPA 路由，`client_max_body_size 500m` 支持视频上传。
 
 **适配点 C**：`/root` 目录默认 `dr-xr-x---`，nginx worker（nginx 用户）无权读取，报 `stat() failed (13: Permission denied)` 并引发重写循环（500）。处理：`chmod 755 /root /root/CRA && chmod -R a+rX /root/CRA/web`（麒麟 V10 SELinux 为 Disabled，无需额外上下文处理）。
 

@@ -22,7 +22,7 @@ import java.util.UUID;
  * 本机模拟国联门户登录（profile=local）。
  * <p>
  * 只校验手机号是否已开通本地账号，密码不校验；登录成功后签发一次性 ticket（Redis，5 分钟），
- * 由前端跳转 /guolian-jijian/login?ticket=xxx 走与目标机一致的单点登录链路。
+ * 由前端跳转 /guolian-jijian/login?ticket=xxx 走与测试机一致的单点登录链路。
  * </p>
  */
 @Slf4j

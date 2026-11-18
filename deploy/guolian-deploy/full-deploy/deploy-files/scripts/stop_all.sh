@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# AIExamK3 目标机一键停止：后端 / Redis / 本机 MinIO 兜底进程（对象存储为远端 OSS）
+# AIExamK3 测试机一键停止：后端 / Redis / 本机 MinIO 兜底进程（对象存储为远端 OSS）
 # 不处理 InforSuiteLB 与数据库；LB 配置重载用 start_all.sh reload-lb
 set -u
 

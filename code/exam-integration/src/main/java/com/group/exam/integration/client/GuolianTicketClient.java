@@ -3,7 +3,7 @@ package com.group.exam.integration.client;
 /**
  * 国联 ticket 换取员工ID 的客户端抽象。
  * <p>
- * 目标机使用 {@link GuolianOpenApiClient}（真实公服接口）；
+ * 测试机使用 {@link GuolianOpenApiClient}（真实公服接口）；
  * 本机（profile=local）使用 {@link MockGuolianTicketClient}（模拟 ticket，便于无门户环境联调）。
  * </p>
  */

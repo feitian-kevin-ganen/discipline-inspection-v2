@@ -37,8 +37,8 @@
 | 配置项 | 规约值 | 说明 |
 |--------|--------|------|
 | 后端端口 | `8088` | 不可随意变更，网关 `/api/` 反代指向它 |
-| 统一入口端口 | `6003` | 三端静态 + `/api` 反代，与目标机 6003 单入口口径一致 |
-| 数据库驱动 | `com.mysql.cj.jdbc.Driver` | 本机与目标机统一 MySQL |
+| 统一入口端口 | `6003` | 三端静态 + `/api` 反代，与测试机 6003 单入口口径一致 |
+| 数据库驱动 | `com.mysql.cj.jdbc.Driver` | 本机与测试机统一 MySQL |
 | 数据库 URL | `jdbc:mysql://127.0.0.1:3306/exam_db?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true` | 本地 PaaS MySQL 8 |
 | 数据库账号 | `exam_admin / Exam@Local2026` | 仅授权 `exam_db`，不使用 root |
 | Redis host | `127.0.0.1` | 本地 PaaS Redis |
@@ -50,9 +50,9 @@
 | MinIO secret-key | `minioadmin` | 本地 MinIO 默认密码 |
 | MinIO bucket | `exam-files` | 本地 MinIO bucket 名 |
 | ffmpeg 路径 | `/home/cloud/projects/AIExamK3/deploy/local-deploy/middleware/ffmpeg` | 运行路径 |
-| JWT secret | `9f4c2a7b8d1e3f5061728394a5b6c7d8e9f0a1b2c3d4e5f60718293a4b5c6d7e8` | 与目标机共用同一签名密钥 |
-| JWT access-expire | `43200` 秒 | 与目标机一致 |
-| JWT refresh-expire | `604800` 秒 | 与目标机一致 |
+| JWT secret | `9f4c2a7b8d1e3f5061728394a5b6c7d8e9f0a1b2c3d4e5f60718293a4b5c6d7e8` | 与测试机共用同一签名密钥 |
+| JWT access-expire | `43200` 秒 | 与测试机一致 |
+| JWT refresh-expire | `604800` 秒 | 与测试机一致 |
 | AI 生题 base-url | `https://glai2.wuxidata.com.cn:4001` | 国联集团模型平台（OpenAI 兼容协议） |
 | AI 生题 model | `guolian-llm-max` | 国联 DeepSeek-V4-Flash-1017；网关只接受该模型名，传 `DeepSeek-V4-Flash-1017` 返回 400 |
 | AI 生题 api-key | 运行副本注入，不入库 | 只写在 `/home/cloud/projects/AIExamK3/deploy/local-deploy/config/application.yml`；源码默认空串，禁止提交明文 key |
@@ -95,7 +95,7 @@ bash scripts/stop_all.sh           # 只停本目录 run/*.pid 记录的进程
 3. 等待 `/v3/api-docs` 可用（最长 120 秒）。
 4. 启动统一入口网关（端口 6003）：`python3 scripts/local_gateway.py --port 6003 --root $APP_DIR`。
 
-`local_gateway.py` 等价实现目标机 InforSuiteLB 的路由模型（本机无 InforSuiteLB）：
+`local_gateway.py` 等价实现测试机 InforSuiteLB 的路由模型（本机无 InforSuiteLB）：
 
 | 前缀 | 去向 |
 |------|------|
@@ -128,7 +128,7 @@ python3 scripts/verify_pdf_pages.py
 - 本机**不生成 `local-deploy` 归档**，启动所需文件直接位于 `/home/cloud/projects/AIExamK3/deploy/local-deploy`。
 - 依赖本地 PaaS：MySQL `3306`（库 `exam_db`）、Redis `6379`、MinIO `9000` 必须可用；PostgreSQL `5434` 仅作迁移回滚源。
 - 若本机 IP 变化，须同步修改 `config/application.yml` 中的 `minio.public-endpoint`。
-- 本机配置与目标机配置**严禁混用**：目标机是 PolarDB MySQL + OSS + InforSuiteLB，本机是
+- 本机配置与测试机配置**严禁混用**：测试机是 PolarDB MySQL + OSS + InforSuiteLB，本机是
   MySQL 8 + 本地 MinIO + `local_gateway.py`。
 - 端口模型：后端 `8088` 只被网关反代，对外只需开放 `6003`；不要沿用历史上
   `6009/6002/6001` 分端口静态服务的做法，三端 dist 已按 `/mgmt/`、`/learning-web/`、

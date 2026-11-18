@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# AIExamK3 目标机一键备份脚本
+# AIExamK3 测试机一键备份脚本
 # 备份内容：数据库、应用包（app/config/web/scripts/middleware/README）、对象存储本地副本（如有）
 # 用法：
 #   bash /root/AIExamK3/scripts/backup.sh
@@ -21,7 +21,7 @@ echo "[backup] 应用目录 $APP_DIR"
 echo "[backup] 备份目录 $BACKUP_DIR"
 
 # -------------------------------------------------
-# 1. 定位备份工具（优先目标机 /root/migration/tools/mysql，其次系统 PATH，最后随包工具）
+# 1. 定位备份工具（优先测试机 /root/migration/tools/mysql，其次系统 PATH，最后随包工具）
 # -------------------------------------------------
 MYSQL_TOOLS_DIR="${MYSQL_TOOLS_DIR:-/root/migration/tools/mysql}"
 for candidate in \
@@ -76,7 +76,7 @@ tar -czf "$BACKUP_DIR/app-package.tar.gz" \
 echo "[backup] 应用包备份完成：$BACKUP_DIR/app-package.tar.gz"
 
 # -------------------------------------------------
-# 5. 备份对象存储本地副本（目标机主存储为远端 OSS，本目录通常不存在）
+# 5. 备份对象存储本地副本（测试机主存储为远端 OSS，本目录通常不存在）
 # -------------------------------------------------
 if [ -d "$APP_DIR/data/minio/exam-files" ]; then
   echo "[backup] 备份对象存储本地副本到 minio-data.tar.gz ..."

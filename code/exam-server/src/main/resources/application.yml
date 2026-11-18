@@ -5,7 +5,7 @@ spring:
   application:
     name: exam-server
   profiles:
-    # local：本机模拟国联单点登录（MockGuolianTicketClient），目标机不要激活
+    # local：本机模拟国联单点登录（MockGuolianTicketClient），测试机不要激活
     active: local
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver

@@ -6,7 +6,7 @@
 
 用法：
   本机 MinIO:  venv-pxd/bin/python3 repair-faststart.py
-  目标机 OSS:  venv-pxd/bin/python3 repair-faststart.py \
+  测试机 OSS:  venv-pxd/bin/python3 repair-faststart.py \
                 --endpoint http://10.10.250.100:8333 \
                 --ak <AK> --sk <SK> [--secure]
 幂等：已 faststart 的 mp4 重写一次（内容基本不变），重复执行安全。

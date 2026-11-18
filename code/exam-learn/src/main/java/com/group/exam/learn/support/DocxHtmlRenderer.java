@@ -19,7 +19,7 @@ import java.util.zip.ZipInputStream;
  * DOCX 转 HTML 渲染器（纯 Java，无原生依赖）。
  * 学习端 Word 资料在线预览：解析 word/document.xml 的段落/表格/图片/分页标记，
  * 输出带内联样式的 HTML（图片转 base64 data URI），由浏览器排版显示，
- * 避免服务端 AWT 渲染依赖服务器中文字体（目标机不一定安装）。
+ * 避免服务端 AWT 渲染依赖服务器中文字体（测试机不一定安装）。
  */
 public final class DocxHtmlRenderer {
 

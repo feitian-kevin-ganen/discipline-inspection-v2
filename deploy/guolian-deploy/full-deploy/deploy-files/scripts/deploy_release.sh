@@ -5,7 +5,7 @@
 #   在运目录       APP : /root/AIExamK3
 #   负载均衡       LB  : /data/InforSuiteLB （同级的 /data/rds-install 是数据库安装目录，本脚本不碰）
 #
-# 用法（在目标机 root 下执行）：
+# 用法（在测试机 root 下执行）：
 #   bash /root/fully-deploy/AIExamK3/scripts/deploy_release.sh check      # 发布前检查，不落盘
 #   bash /root/fully-deploy/AIExamK3/scripts/deploy_release.sh backup     # 备份在运目录（库+包+对象存储本地副本+配置）
 #   bash /root/fully-deploy/AIExamK3/scripts/deploy_release.sh apply      # 把 staging 同步到 live

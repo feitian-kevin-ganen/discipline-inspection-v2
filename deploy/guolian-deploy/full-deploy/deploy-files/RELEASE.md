@@ -1,13 +1,13 @@
 # 发布说明 deploy-increment-20261117-v1.1
 
-**适用场景**：目标机上已有全量包解压目录，用增量包覆盖后，再发布到在运目录。
+**适用场景**：测试机上已有全量包解压目录，用增量包覆盖后，再发布到在运目录。
 **打包日期**：2026-11-17
 **包顶层**：`./`（即包内文件名直接对应 `<staging>/` 下的相对路径）
 **累积性**：本包是自 `full-deploy-20261117-v1.tar.gz` 起的**累积增量**，无论是否已应用过 `deploy-increment-20261117-v1.tar.gz`，直接覆盖即可。
 
 ---
 
-## 一、目标机目录角色（先认清三个路径）
+## 一、测试机目录角色（先认清三个路径）
 
 | 路径 | 角色 | 本脚本会不会动它 |
 |------|------|------------------|
@@ -16,11 +16,11 @@
 | `/data/InforSuiteLB` | **负载均衡** InforSuiteLB 安装目录 | 只改名站点配置并 reload |
 | `/data/rds-install` | 数据库安装目录 | **不动，绝对不要碰** |
 
-> 反向代理是 **InforSuiteLB**，不是 Nginx。目标机上不存在 nginx 配置文件，`scripts/` 里历史遗留的 `nginx-discipline-inspection.conf` 会在同步时被自动清除。
+> 反向代理是 **InforSuiteLB**，不是 Nginx。测试机上不存在 nginx 配置文件，`scripts/` 里历史遗留的 `nginx-discipline-inspection.conf` 会在同步时被自动清除。
 
 ---
 
-## 二、发布步骤（在目标机 root 下执行）
+## 二、发布步骤（在测试机 root 下执行）
 
 ### 1. 把增量包覆盖到 staging
 
@@ -58,7 +58,7 @@ bash /root/fully-deploy/AIExamK3/scripts/deploy_release.sh all --yes
 | `backup` | 调 `/root/AIExamK3/scripts/backup.sh`：数据库 `exam_db.sql.gz`、应用包 `app-package.tar.gz`、对象存储本地副本 `minio-data.tar.gz`（如存在）、配置，落到 `/root/AIExamK3-backup/<时间戳>/` |
 | `apply` | `app`、`docs`、`README.md` 增量覆盖；`web`、`scripts` 用 `--delete` 全量同步（清掉旧 hash 静态文件与废弃 nginx 配置）；**不覆盖** live 的 `config/application-polardb.yml` |
 | `lb` | 站点配置 `cra.conf` → `discipline-inspection.conf` 改名，`-t` 测试通过后 `-s reload` |
-| `restart` | `stop_all.sh` 后 `start_all.sh`，只重启本项目后端/Redis（目标机对象存储为远端 OSS，不在本机），LB 与数据库不动 |
+| `restart` | `stop_all.sh` 后 `start_all.sh`，只重启本项目后端/Redis（测试机对象存储为远端 OSS，不在本机），LB 与数据库不动 |
 | `verify` | 三端入口 200 + `text/html`、首页引用带对应 base、后端 `/api/v1/health/db`，通过后再跑 `verify_api.py` |
 
 也可以分步执行（每一步都会交互确认，加 `--yes` 免确认）：
@@ -193,8 +193,8 @@ bash /root/AIExamK3/scripts/start_all.sh
 
 ## 七、已知事项
 
-- 目标机文件存储是**远端 OSS**（S3 兼容；当前配置端点 `http://10.10.250.100:8333`，bucket `exam-files`），不是本机 MinIO。应用配置前缀仍为 `exam.minio.*`，无需改名；`start_all.sh` 只做连通性探测，不会启动本地 MinIO，`backup.sh` 的 `minio-data.tar.gz` 仅在本地副本存在时生成。
+- 测试机文件存储是**远端 OSS**（S3 兼容；当前配置端点 `http://10.10.250.100:8333`，bucket `exam-files`），不是本机 MinIO。应用配置前缀仍为 `exam.minio.*`，无需改名；`start_all.sh` 只做连通性探测，不会启动本地 MinIO，`backup.sh` 的 `minio-data.tar.gz` 仅在本地副本存在时生成。
 - 本次**无数据库结构变更**，包内无 `db/` 补丁。
 - `apply` 会以 staging 的 `scripts/` 全量替换 live 的 `scripts/`。若现场曾手工改过 live 的脚本，先跑 `backup`（`all` 已包含），差异可从备份里取回。
-- 目标机若装了 `rsync`，同步走 `rsync -a --delete`；没装则退化为 `cp -a`（`--delete` 场景先清空目录再拷贝），行为一致只是更慢。
+- 测试机若装了 `rsync`，同步走 `rsync -a --delete`；没装则退化为 `cp -a`（`--delete` 场景先清空目录再拷贝），行为一致只是更慢。
 - `verify` 里的 `verify_api.py` 依赖后端健康检查通过；后端未就绪时会打印 warn 但不阻断前面三端的结论。

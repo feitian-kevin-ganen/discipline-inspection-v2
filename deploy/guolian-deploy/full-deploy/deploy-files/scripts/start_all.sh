@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# AIExamK3 目标机一键启动脚本
+# AIExamK3 测试机一键启动脚本
 #   后端：8088（jar + config/application-polardb.yml）
-#   Redis / 对象存储（目标机为远端 OSS）：本机才启动，远端只做连通性检查
-#   反向代理：目标机为 InforSuiteLB（/data/InforSuiteLB），不是 Nginx
+#   Redis / 对象存储（测试机为远端 OSS）：本机才启动，远端只做连通性检查
+#   反向代理：测试机为 InforSuiteLB（/data/InforSuiteLB），不是 Nginx
 # 用法：
 #   ./start_all.sh            启动 Redis/对象存储探测/后端，并打印状态
 #   ./start_all.sh status     只看状态

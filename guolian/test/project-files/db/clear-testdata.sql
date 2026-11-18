@@ -1,7 +1,7 @@
 -- =====================================================================
 -- clear-testdata.sql  测试数据清理（重新导入数据前执行）
 -- 生成日期: 2026-09-22
--- 适用库: exam_db（本机 10.110.40.125:3306 / 目标机 10.64.16.14:4886，
+-- 适用库: exam_db（本机 10.110.40.125:3306 / 测试机 10.64.16.14:4886，
 --         均为 PolarDB for MySQL 8.0.32-X-Cluster，已实测语法兼容）
 --
 -- 【保留范围】
@@ -25,7 +25,7 @@
 --
 -- 【执行方式】
 --   本机:   mysql -h10.110.40.125 -P3306 -uexam_admin -p'Oh]fT>*PA&,6' exam_db < clear-testdata.sql
---   目标机: /root/migration/tools/mysql/mysql.sh -h10.64.16.14 -P4886 -uexam_admin -p'z>PD?8Wr_W7h' exam_db < clear-testdata.sql
+--   测试机: /root/migration/tools/mysql/mysql.sh -h10.64.16.14 -P4886 -uexam_admin -p'z>PD?8Wr_W7h' exam_db < clear-testdata.sql
 -- =====================================================================
 
 -- ---------- 0. 执行前预览（仅查看，不影响后续执行） ----------

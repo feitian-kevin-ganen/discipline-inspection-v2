@@ -2,8 +2,8 @@
 # -*- coding: utf-8 -*-
 """本机统一入口网关：三端静态资源 + /api 反向代理。
 
-目标机该角色由 InforSuiteLB 承担（6003 单入口）；本机没有 InforSuiteLB，
-用本脚本等价实现，保证本机与目标机的访问路径完全一致：
+测试机该角色由 InforSuiteLB 承担（6003 单入口）；本机没有 InforSuiteLB，
+用本脚本等价实现，保证本机与测试机的访问路径完全一致：
 
     /portal/        -> web/portal（本机模拟数字国联门户）
     /mgmt/         -> web/admin

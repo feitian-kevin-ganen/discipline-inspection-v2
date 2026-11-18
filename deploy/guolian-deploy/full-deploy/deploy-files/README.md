@@ -1,12 +1,12 @@
-# discipline-inspection 目标机全量部署包
+# discipline-inspection 测试机全量部署包
 
-纪检监察考试培训系统（discipline-inspection）。解压到目标机 `/root` 后得到 `/root/AIExamK3`，按下列步骤启动。
+纪检监察考试培训系统（discipline-inspection）。解压到测试机 `/root` 后得到 `/root/AIExamK3`，按下列步骤启动。
 
-目标机信息（国联环境）：
+测试机信息（国联环境）：
 
 | 项 | 值 |
 |----|----|
-| 目标机 IP | 10.64.16.29 |
+| 测试机 IP | 10.64.16.29 |
 | 部署根目录 | /root/AIExamK3 |
 | 数据库 | 10.64.16.14:4886 / exam_db（PolarDB-X） |
 | 数据库客户端 | /root/migration/tools/mysql/（mysql.sh、bin/mysqldump） |
@@ -19,15 +19,15 @@
 ```
 /root/AIExamK3
 ├── app/exam-server.jar              # 后端 jar（含 PolarDB-X/MySQL 驱动）
-├── config/application-polardb.yml   # 目标环境外置配置（DB/Redis/对象存储/AI 等）
+├── config/application-polardb.yml   # 测试机环境外置配置（DB/Redis/对象存储/AI 等）
 ├── web/admin/                       # PC 管理端静态产物（base=/mgmt/）
 ├── web/user/                        # PC 用户端静态产物（base=/learning-web/）
 ├── web/h5/                          # H5 移动端静态产物（base=/learning-h5/）
 ├── middleware/
 │   ├── jdk21/                       # Temurin JDK 21.0.12
-│   ├── minio                        # MinIO 服务端二进制（目标机已改用 OSS，仅作本机兜底）
+│   ├── minio                        # MinIO 服务端二进制（测试机已改用 OSS，仅作本机兜底）
 │   ├── ffmpeg                       # 视频抽帧工具
-│   └── mysql-tools/                 # 随包 mysqldump/mysql（目标机无客户端时兜底）
+│   └── mysql-tools/                 # 随包 mysqldump/mysql（测试机无客户端时兜底）
 ├── data/minio/exam-files/           # 对象存储本地副本（主存储为 OSS 10.10.250.100:8333，通常为空）
 ├── scripts/
 │   ├── start_all.sh                 # 一键启动（Redis/对象存储探测/后端）
@@ -40,9 +40,9 @@
 └── docs/                            # 需求/设计/迁移等项目资料
 ```
 
-本包不含源码；目标机源码单独维护在发布仓库 `full-deploy/source-code/` 下。
+本包不含源码；测试机源码单独维护在发布仓库 `full-deploy/source-code/` 下。
 
-## 前置条件（目标机）
+## 前置条件（测试机）
 
 - 麒麟 V10 / CentOS / Ubuntu 等 Linux x86_64
 - 后端依赖的外部 MySQL 已就绪：`10.64.16.14:4886` 上的 `exam_db`
@@ -52,7 +52,7 @@
 - 放行端口：8088（后端直连/内网）、6003（业务统一入口：三端 + `/api/` 按路径前缀路由）、6001（兼容段：`/` 跳 H5、`/guolian-jijian/login` 单点登录）
 - `80` 是中创 LB 管控平台（`/console`、`/api` 管控接口），与业务发布无关；`6000` 是 Chrome 受限端口，不可用作入口
 
-目标机的 `/data` 下有且只有两个与发布相关（无关）的目录：
+测试机的 `/data` 下有且只有两个与发布相关（无关）的目录：
 
 | 路径 | 角色 | 发布时是否改动 |
 |------|------|----------------|
@@ -99,7 +99,7 @@ curl -sI http://127.0.0.1:6001/guolian-jijian/login | grep -i content-type   # t
 
 ## 对象存储说明（OSS，非本机 MinIO）
 
-目标机的文件存储是 **OSS**（S3 兼容对象存储）。当前目标配置的端点是 `http://10.10.250.100:8333`，bucket `exam-files`；若 OSS 实际端点不同，只改下面两个地址即可。
+测试机的文件存储是 **OSS**（S3 兼容对象存储）。当前目标配置的端点是 `http://10.10.250.100:8333`，bucket `exam-files`；若 OSS 实际端点不同，只改下面两个地址即可。
 应用侧仍使用 MinIO SDK（S3 协议）与历史配置前缀 `exam.minio.*`，因此**配置项名不需要改**，只改值即可：
 
 ```yaml
@@ -112,11 +112,11 @@ exam:
     bucket: exam-files
 ```
 
-`start_all.sh` 只对该 endpoint 做连通性探测，**不会在目标机启动本地 MinIO**；`middleware/minio` 与 `data/minio` 仅作本机兜底，备份时缺失会自动跳过。
+`start_all.sh` 只对该 endpoint 做连通性探测，**不会在测试机启动本地 MinIO**；`middleware/minio` 与 `data/minio` 仅作本机兜底，备份时缺失会自动跳过。
 
 ## InforSuiteLB 说明（反向代理，非 Nginx）
 
-目标机反向代理为 **InforSuiteLB**，不存在 nginx。三端静态产物必须由 LB 以对应上下文路径暴露，否则会白屏（产物内已固定 base 路径）：
+测试机反向代理为 **InforSuiteLB**，不存在 nginx。三端静态产物必须由 LB 以对应上下文路径暴露，否则会白屏（产物内已固定 base 路径）：
 
 三端与 `/api/` 全部收敛到**统一入口 `6003`** 单端口，按路径前缀路由（历史上 6009/6002/6001 三端口已废弃）：
 
@@ -152,7 +152,7 @@ grep -rn "cra.conf" /data/InforSuiteLB/conf/ || true
 # 站点的上下文映射 / 静态根目录 / 反代规则位于
 vi /data/InforSuiteLB/conf/discipline-inspection.conf
 
-# 先测试再重载（路径按目标机实际安装位置，默认 /data/InforSuiteLB）
+# 先测试再重载（路径按测试机实际安装位置，默认 /data/InforSuiteLB）
 /data/InforSuiteLB/sbin/InforSuiteLB -p /data/InforSuiteLB -c /data/InforSuiteLB/conf/InforSuiteLB.conf -t
 /data/InforSuiteLB/sbin/InforSuiteLB -p /data/InforSuiteLB -c /data/InforSuiteLB/conf/InforSuiteLB.conf -s reload
 
