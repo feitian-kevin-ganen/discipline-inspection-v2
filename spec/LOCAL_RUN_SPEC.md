@@ -131,6 +131,8 @@ python3 scripts/verify_pdf_pages.py
   `/learning-h5/` 前缀构建，分端口静态服务会导致资源 404。
 - 停服务只按 `run/*.pid` 停止，不得 `pkill java` 或按端口杀进程（会波及其他项目）。
 - 本机模拟国联单点登录：`/portal/` 手机号登录（密码不校验）→ 应用中心 → `/guolian-jijian/login?ticket=...`；
-  ticket 存 Redis `portal:ticket:{ticket}`（TTL 5 分钟、一次性）。测试账号：
+  ticket 存 Redis `portal:ticket:{ticket}`（TTL 5 分钟、一次性）。
+  页面源文件 `code/local-portal/index.html`（单文件，无构建），按 `requirement/mock1.png`（登录页）、
+  `requirement/mock2.png`（应用中心）还原；应用中心仅「纪检监察业务」真实跳转，其余 7 个图标为 mock 提示。测试账号：
   `13822211100`（empId 10536，`HQ_ADMIN` → 管理端）、`13585020876`（empId 30，`EXAMINEE` → 用户端）。
   对应 SQL：`code/exam-server/src/main/resources/db/data-local-portal-accounts-mysql.sql`。
