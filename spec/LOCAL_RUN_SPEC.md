@@ -53,6 +53,10 @@
 | JWT secret | `9f4c2a7b8d1e3f5061728394a5b6c7d8e9f0a1b2c3d4e5f60718293a4b5c6d7e8` | 与目标机共用同一签名密钥 |
 | JWT access-expire | `43200` 秒 | 与目标机一致 |
 | JWT refresh-expire | `604800` 秒 | 与目标机一致 |
+| AI 生题 base-url | `https://glai2.wuxidata.com.cn:4001` | 国联集团模型平台（OpenAI 兼容协议） |
+| AI 生题 model | `guolian-llm-max` | 国联 DeepSeek-V4-Flash-1017；网关只接受该模型名，传 `DeepSeek-V4-Flash-1017` 返回 400 |
+| AI 生题 api-key | 运行副本注入，不入库 | 只写在 `/home/cloud/AIExamK3/config/application.yml`；源码默认空串，禁止提交明文 key |
+| AI 生题 max-tokens | `8192` | 思考型模型，输出含 reasoning，注意长题目可能被截断 |
 
 > **强制检查项**：启动前执行 `hostname -I` 核对本机 IP。若 IP 不是 `10.110.40.160`，必须同步修改 `application.yml` 中的 `minio.public-endpoint`，否则外部访问 MinIO 预签名 URL 会失败。
 

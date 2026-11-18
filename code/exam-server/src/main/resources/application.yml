@@ -63,7 +63,7 @@ exam:
     base-url: https://glai2.wuxidata.com.cn:4001
     # API Key（小写 sk- 开头）；jar 内默认为空，必须由外部配置注入
     api-key: ''
-    model: deepseek-v4-flash
+    model: guolian-llm-max
     timeout-seconds: 180
     max-tokens: 8192
     ocr-model: PaddleOCR

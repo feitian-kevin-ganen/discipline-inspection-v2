@@ -22,7 +22,7 @@ import java.util.Set;
 /**
  * 国联集团模型平台客户端（OpenAI 兼容协议），AI 生题真实模型实现。
  * 手册：https://glai2.wuxidata.com.cn:4001/doc/AI模型使用手册.html
- * 默认模型 deepseek-v4-flash（网关唯一 DeepSeek，官方推荐通用对话首选）。
+ * 默认模型 guolian-llm-max（国联 DeepSeek-V4-Flash-1017；网关仅接受该模型名，DeepSeek-V4-Flash-1017 会返回 400）。
  */
 @Component
 public class GliaiModelClient {
@@ -39,7 +39,7 @@ public class GliaiModelClient {
 
     public GliaiModelClient(@Value("${exam.ai-gen.base-url:https://glai2.wuxidata.com.cn:4001}") String baseUrl,
                             @Value("${exam.ai-gen.api-key:}") String apiKey,
-                            @Value("${exam.ai-gen.model:deepseek-v4-flash}") String model,
+                            @Value("${exam.ai-gen.model:guolian-llm-max}") String model,
                             @Value("${exam.ai-gen.ocr-model:PaddleOCR}") String ocrModel,
                             @Value("${exam.ai-gen.timeout-seconds:120}") int timeoutSeconds,
                             @Value("${exam.ai-gen.max-tokens:8192}") int maxTokens) {
