@@ -16,11 +16,11 @@
 full-deploy/
 ├── source-code/          # 目标机部署所需的源代码（即代码工程）
 │   └── code/             # 后端、前端、脚本等源码
-├── deploy-assets/        # 发布包内可变文本资产的权威副本（README.md、scripts/）
-└── deploy-files/         # 目标机要发布的运行内容（仅保留压缩包）
-    └── full-deploy-{yyyyMMDD}-v{x}.tar.gz
-```
-
+└── deploy-files/         # 目标机发布物：全量压缩包 + 部署文本资产
+    ├── full-deploy-{yyyyMMdd}-v{x}.tar.gz
+    ├── README.md         # 部署说明（打包时复制进压缩包根目录）
+    ├── RELEASE.md        # 发布说明（打包时复制进压缩包根目录）
+    └── scripts/          # 启停/备份/发布/校验脚本（打包时复制进压缩包根目录）
 解压后结构：
 
 ```text
@@ -42,9 +42,9 @@ AIExamK3/
 | 目录/文件 | 归属 | 说明 |
 |-----------|------|------|
 | `source-code/code/` | `source-code` | 项目源码工程，包括 Maven 后端、Vue 前端、脚本源码等。 |
-| `deploy-assets/README.md` | `deploy-assets` | 发布包内 `README.md` 的权威副本，打包时复制进压缩包根目录。 |
-| `deploy-assets/scripts/` | `deploy-assets` | 发布包内 `scripts/` 的权威副本（`start_all.sh`、`stop_all.sh`、`backup.sh`、`deploy_release.sh`、`verify_*.py` 等）。 |
-| `deploy-assets/RELEASE.md` | `deploy-assets` | 发布包内 `RELEASE.md` 的权威副本（staging → live 发布说明），打包时复制进压缩包根目录。 |
+| `deploy-files/README.md` | `deploy-files` | 发布包内 `README.md` 的权威副本，打包时复制进压缩包根目录。 |
+| `deploy-files/scripts/` | `deploy-files` | 发布包内 `scripts/` 的权威副本（`start_all.sh`、`stop_all.sh`、`backup.sh`、`deploy_release.sh`、`verify_*.py` 等）。 |
+| `deploy-files/RELEASE.md` | `deploy-files` | 发布包内 `RELEASE.md` 的权威副本（staging → live 发布说明），打包时复制进压缩包根目录。 |
 | `deploy-files/full-deploy-*.tar.gz` | `deploy-files` | 目标机全量发布压缩包，解压后顶层为 `AIExamK3/`。 |
 | `AIExamK3/app/` | 压缩包内 | 后端可执行 jar（`exam-server.jar`）。 |
 | `AIExamK3/config/` | 压缩包内 | 目标环境外置配置（如 `application-polardb.yml`）。 |
@@ -68,7 +68,7 @@ AIExamK3/
   - 版本号规则：每天从 `v1` 开始，同一天每打一次增加 `0.1`。
   - 示例：`full-deploy-20261116-v1.tar.gz`、`full-deploy-20261116-v1.1.tar.gz`
   - 压缩包顶层目录为 `AIExamK3/`，解压到 `/root/fully-deploy` 后即为 staging `/root/fully-deploy/AIExamK3`（见 5.9）。
-- `deploy-files/` 目录下**只保留压缩包**，不再保留未压缩的 `app/`、`config/` 等原始文件夹。
+- `deploy-files/` 目录下只保留压缩包与部署文本资产（`README.md`、`RELEASE.md`、`scripts/`），不再保留未压缩的 `app/`、`config/`、`web/` 等展开目录。
 - 包内必须带 `scripts/deploy_release.sh` 与 `RELEASE.md`，发布以脚本为准，不靠手工命令清单。
 
 ### 1.5 源码同步要求
