@@ -2,6 +2,8 @@ package com.group.exam.workflow.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.group.exam.common.core.PageResult;
 import com.group.exam.common.enums.ErrorCode;
 import com.group.exam.common.exception.BizException;
 import com.group.exam.common.security.LoginUser;
@@ -15,20 +17,27 @@ import com.group.exam.workflow.entity.FlowBizInstance;
 import com.group.exam.workflow.mapper.FlowBizInstanceMapper;
 import com.group.exam.workflow.service.FlowInstanceService;
 import com.group.exam.workflow.spi.FlowStatusCallback;
+import com.group.exam.workflow.spi.FlowUserNameResolver;
 import com.group.exam.workflow.support.FlowContext;
 import org.flowable.engine.HistoryService;
 import org.flowable.engine.RepositoryService;
 import org.flowable.engine.RuntimeService;
 import org.flowable.engine.TaskService;
+import org.flowable.engine.history.HistoricActivityInstance;
+import org.flowable.engine.history.HistoricProcessInstance;
 import org.flowable.engine.repository.ProcessDefinition;
 import org.flowable.engine.runtime.ProcessInstance;
 import org.flowable.task.api.Task;
 import org.flowable.task.api.TaskQuery;
 import org.flowable.task.api.history.HistoricTaskInstance;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
@@ -36,8 +45,10 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -52,19 +63,22 @@ public class FlowInstanceServiceImpl implements FlowInstanceService {
     private final FlowBizInstanceMapper mapper;
     /** key = Spring Bean 名称 = bizType */
     private final Map<String, FlowStatusCallback> callbacks;
+    private final FlowUserNameResolver userNameResolver;
 
     public FlowInstanceServiceImpl(RuntimeService runtimeService,
                                    TaskService taskService,
                                    RepositoryService repositoryService,
                                    HistoryService historyService,
                                    FlowBizInstanceMapper mapper,
-                                   Map<String, FlowStatusCallback> callbacks) {
+                                   Map<String, FlowStatusCallback> callbacks,
+                                   ObjectProvider<FlowUserNameResolver> userNameResolverProvider) {
         this.runtimeService = runtimeService;
         this.taskService = taskService;
         this.repositoryService = repositoryService;
         this.historyService = historyService;
         this.mapper = mapper;
         this.callbacks = callbacks == null ? Map.of() : callbacks;
+        this.userNameResolver = userNameResolverProvider.getIfAvailable();
     }
 
     // ------------------------------------------------------------------ 发起
@@ -367,7 +381,102 @@ public class FlowInstanceServiceImpl implements FlowInstanceService {
                 .eq(FlowBizInstance::getStartUserId, userId)
                 .orderByDesc(FlowBizInstance::getId)
                 .last("LIMIT " + MAX_LIST));
-        return records.stream().map(this::toInstanceVO).toList();
+        return toInstanceVOs(records);
+    }
+
+    @Override
+    public PageResult<FlowInstanceVO> allInstances(String title, String status, long pageNum, long pageSize) {
+        long current = Math.max(pageNum, 1);
+        long size = Math.min(Math.max(pageSize, 1), 100);
+        LambdaQueryWrapper<FlowBizInstance> query = new LambdaQueryWrapper<FlowBizInstance>()
+                .like(StringUtils.hasText(title), FlowBizInstance::getTitle, title == null ? null : title.trim())
+                .eq(StringUtils.hasText(status), FlowBizInstance::getStatus, status)
+                .orderByDesc(FlowBizInstance::getId);
+        Page<FlowBizInstance> page = mapper.selectPage(new Page<>(current, size), query);
+        return PageResult.of(page.getTotal(), toInstanceVOs(page.getRecords()), current, size);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void stopInstance(String procInstId, String comment) {
+        FlowBizInstance record = findByProcInstId(procInstId);
+        if (record == null) {
+            throw new BizException(ErrorCode.NOT_FOUND, "流程实例不存在: " + procInstId);
+        }
+        if (!FlowBizInstance.STATUS_RUNNING.equals(record.getStatus())) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "流程已结束，无法终止");
+        }
+        Long operator = SecurityUtils.getUserId();
+        FlowContext.set(operator, comment);
+        try {
+            runtimeService.deleteProcessInstance(procInstId, STOP_PREFIX + (comment == null ? "" : comment.trim()));
+            finalizeInstance(procInstId, FlowBizInstance.STATUS_STOPPED, comment, operator);
+        } finally {
+            FlowContext.clear();
+        }
+    }
+
+    @Override
+    public Map<String, Object> diagramData(String procInstId) {
+        Set<String> finished = new LinkedHashSet<>();
+        Set<String> active = new LinkedHashSet<>();
+        Set<String> rejected = new LinkedHashSet<>();
+        for (HistoricActivityInstance act : historyService.createHistoricActivityInstanceQuery()
+                .processInstanceId(procInstId).finished().list()) {
+            finished.add(act.getActivityId());
+        }
+        ProcessInstance running = runtimeService.createProcessInstanceQuery()
+                .processInstanceId(procInstId).singleResult();
+        if (running != null) {
+            active.addAll(runtimeService.getActiveActivityIds(procInstId));
+        }
+        // 驳回节点识别：审批意见以“驳回”开头的任务所在节点
+        for (HistoricTaskInstance task : historyService.createHistoricTaskInstanceQuery()
+                .processInstanceId(procInstId).finished().list()) {
+            String comment = commentOf(task.getId());
+            if (comment != null && comment.startsWith("驳回")) {
+                rejected.add(task.getTaskDefinitionKey());
+            }
+        }
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("finished", finished);
+        result.put("active", active);
+        result.put("rejected", rejected);
+        return result;
+    }
+
+    @Override
+    public String definitionXml(String definitionId) {
+        ProcessDefinition def = repositoryService.createProcessDefinitionQuery()
+                .processDefinitionId(definitionId)
+                .singleResult();
+        if (def == null) {
+            throw new BizException(ErrorCode.NOT_FOUND, "流程定义不存在: " + definitionId);
+        }
+        try (InputStream in = repositoryService.getResourceAsStream(def.getDeploymentId(), def.getResourceName())) {
+            if (in == null) {
+                throw new BizException(ErrorCode.NOT_FOUND, "流程定义资源不存在: " + definitionId);
+            }
+            return new String(in.readAllBytes(), StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "读取流程定义失败: " + e.getMessage());
+        }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void changeDefinitionState(String definitionId, boolean suspend) {
+        ProcessDefinition def = repositoryService.createProcessDefinitionQuery()
+                .processDefinitionId(definitionId)
+                .singleResult();
+        if (def == null) {
+            throw new BizException(ErrorCode.NOT_FOUND, "流程定义不存在: " + definitionId);
+        }
+        if (suspend) {
+            repositoryService.suspendProcessDefinitionById(definitionId, true, null);
+        } else {
+            repositoryService.activateProcessDefinitionById(definitionId, true, null);
+        }
     }
 
     @Override
@@ -377,7 +486,7 @@ public class FlowInstanceServiceImpl implements FlowInstanceService {
             throw new BizException(ErrorCode.NOT_FOUND, "流程实例不存在: " + procInstId);
         }
         FlowInstanceDetailVO detail = new FlowInstanceDetailVO();
-        detail.setInstance(toInstanceVO(record));
+        detail.setInstance(toInstanceVOs(List.of(record)).get(0));
         List<HistoricTaskInstance> tasks = historyService.createHistoricTaskInstanceQuery()
                 .processInstanceId(procInstId)
                 .orderByHistoricTaskInstanceStartTime()
@@ -395,6 +504,14 @@ public class FlowInstanceServiceImpl implements FlowInstanceService {
             history.add(item);
         }
         detail.setHistory(history);
+        Map<String, Object> variables = new LinkedHashMap<>();
+        historyService.createHistoricVariableInstanceQuery().processInstanceId(procInstId).list()
+                .forEach(v -> {
+                    if (v.getVariableName() != null && !v.getVariableName().startsWith("_")) {
+                        variables.put(v.getVariableName(), v.getValue());
+                    }
+                });
+        detail.setVariables(variables);
         return detail;
     }
 
@@ -518,6 +635,49 @@ public class FlowInstanceServiceImpl implements FlowInstanceService {
         vo.setEndTime(record.getEndTime());
         vo.setCreateTime(record.getCreateTime());
         return vo;
+    }
+
+    /**
+     * 批量补全发起人姓名（走可选 SPI）、流程定义 id / 名称，避免逐行查询
+     */
+    private List<FlowInstanceVO> toInstanceVOs(List<FlowBizInstance> records) {
+        if (records == null || records.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, String> names = Map.of();
+        if (userNameResolver != null) {
+            Set<Long> userIds = records.stream()
+                    .map(FlowBizInstance::getStartUserId)
+                    .filter(java.util.Objects::nonNull)
+                    .collect(Collectors.toSet());
+            if (!userIds.isEmpty()) {
+                Map<Long, String> resolved = userNameResolver.names(userIds);
+                names = resolved == null ? Map.of() : resolved;
+            }
+        }
+        Map<String, String> defNameCache = new HashMap<>();
+        List<FlowInstanceVO> result = new ArrayList<>(records.size());
+        for (FlowBizInstance record : records) {
+            FlowInstanceVO vo = toInstanceVO(record);
+            vo.setStartUserName(names.get(record.getStartUserId()));
+            String definitionId = definitionIdOf(record.getProcInstId());
+            vo.setDefinitionId(definitionId);
+            if (definitionId != null) {
+                vo.setProcDefName(defNameCache.computeIfAbsent(definitionId, this::defNameOf));
+            }
+            result.add(vo);
+        }
+        return result;
+    }
+
+    private String definitionIdOf(String procInstId) {
+        if (!StringUtils.hasText(procInstId)) {
+            return null;
+        }
+        HistoricProcessInstance historic = historyService.createHistoricProcessInstanceQuery()
+                .processInstanceId(procInstId)
+                .singleResult();
+        return historic == null ? null : historic.getProcessDefinitionId();
     }
 
     private Long currentUserIdOrNull() {

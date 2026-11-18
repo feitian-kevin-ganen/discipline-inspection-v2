@@ -159,10 +159,16 @@ export const fileApi = {
 // FLOW 审批流程（工作流引擎）
 export const workflowApi = {
   definitions: () => request.get('/workflow/definitions'),
+  definitionXml: (definitionId) => request.get(`/workflow/definition/${definitionId}/xml`),
+  changeDefinitionState: (definitionId, suspend) =>
+    request.post(`/workflow/definition/${definitionId}/state`, { suspend }),
   todo: () => request.get('/workflow/task/todo'),
   done: () => request.get('/workflow/task/done'),
   complete: (taskId, data) => request.post(`/workflow/task/${taskId}/complete`, data),
   start: (data) => request.post('/workflow/start', data),
   myStarted: () => request.get('/workflow/instance/my'),
+  allInstances: (params) => request.get('/workflow/instance/all', { params }),
+  stopInstance: (procInstId, data) => request.post(`/workflow/instance/${procInstId}/stop`, data),
+  diagramData: (procInstId) => request.get(`/workflow/instance/${procInstId}/diagram-data`),
   detail: (procInstId) => request.get(`/workflow/instance/${procInstId}`)
 }

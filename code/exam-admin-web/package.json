@@ -13,6 +13,7 @@
     "@wangeditor-next/editor": "^6.3.0",
     "@wangeditor-next/editor-for-vue": "^6.3.0",
     "axios": "^1.7.7",
+    "bpmn-js": "^18.33.0",
     "echarts": "^5.5.1",
     "element-plus": "^2.8.4",
     "pinia": "^2.2.2",

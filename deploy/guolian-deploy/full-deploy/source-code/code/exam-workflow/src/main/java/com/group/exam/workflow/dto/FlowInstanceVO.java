@@ -12,8 +12,12 @@ public class FlowInstanceVO {
     private Long bizId;
     private String procInstId;
     private String procDefKey;
+    /** 流程定义 id，用于查看流程图 / BPMN XML */
+    private String definitionId;
+    private String procDefName;
     private String title;
     private Long startUserId;
+    private String startUserName;
     private String status;
     private LocalDateTime startTime;
     private LocalDateTime endTime;

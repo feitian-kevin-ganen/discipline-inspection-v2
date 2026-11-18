@@ -1,12 +1,28 @@
 <template>
   <div class="page-container">
     <div class="page-card">
-      <el-table v-loading="loading" :data="list" border stripe>
+      <div class="toolbar">
+        <el-input
+          v-model="query.title"
+          placeholder="业务标题"
+          clearable
+          style="width: 220px"
+          @keyup.enter="loadList"
+          @clear="loadList"
+        />
+        <el-select v-model="query.status" placeholder="流程状态" clearable style="width: 140px" @change="loadList">
+          <el-option v-for="s in STATUS_OPTIONS" :key="s.value" :label="s.label" :value="s.value" />
+        </el-select>
+        <el-button type="primary" @click="loadList">查询</el-button>
+        <el-button @click="resetQuery">重置</el-button>
+      </div>
+
+      <el-table v-loading="loading" :data="filteredList" border stripe>
         <el-table-column prop="title" label="业务标题" min-width="260" show-overflow-tooltip />
-        <el-table-column label="业务类型" width="140">
+        <el-table-column label="业务类型" width="130">
           <template #default="{ row }">{{ bizLabel(row.bizType) }}</template>
         </el-table-column>
-        <el-table-column prop="procDefKey" label="流程标识" width="180" show-overflow-tooltip />
+        <el-table-column prop="procDefName" label="流程" width="160" show-overflow-tooltip />
         <el-table-column label="状态" width="110" align="center">
           <template #default="{ row }">
             <el-tag :type="FLOW_STATUS[row.status]?.type">{{ FLOW_STATUS[row.status]?.label || row.status }}</el-tag>
@@ -18,86 +34,86 @@
         <el-table-column label="结束时间" width="180">
           <template #default="{ row }">{{ fmtTime(row.endTime) }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="110" align="center" fixed="right">
+        <el-table-column label="操作" width="150" align="center" fixed="right">
           <template #default="{ row }">
-            <el-button type="primary" link @click="openDetail(row)">查看进度</el-button>
+            <el-button type="primary" link @click="openProgress(row)">查看进度</el-button>
+            <el-button v-if="row.status === 'RUNNING'" type="danger" link @click="stopRow(row)">终止</el-button>
           </template>
         </el-table-column>
       </el-table>
 
-      <el-empty v-if="!loading && !list.length" description="暂无我发起的流程" />
+      <el-empty v-if="!loading && !filteredList.length" description="暂无我发起的流程" />
     </div>
 
-    <el-drawer v-model="detailVisible" title="流程进度" size="520px">
-      <template v-if="detail">
-        <el-descriptions :column="1" border size="small">
-          <el-descriptions-item label="业务标题">{{ detail.instance?.title }}</el-descriptions-item>
-          <el-descriptions-item label="业务类型">{{ bizLabel(detail.instance?.bizType) }}</el-descriptions-item>
-          <el-descriptions-item label="流程状态">
-            <el-tag :type="FLOW_STATUS[detail.instance?.status]?.type">{{ FLOW_STATUS[detail.instance?.status]?.label || detail.instance?.status }}</el-tag>
-          </el-descriptions-item>
-          <el-descriptions-item label="发起时间">{{ fmtTime(detail.instance?.startTime) }}</el-descriptions-item>
-          <el-descriptions-item label="结束时间">{{ fmtTime(detail.instance?.endTime) }}</el-descriptions-item>
-        </el-descriptions>
-        <el-timeline style="margin-top: 20px">
-          <el-timeline-item
-            v-for="(h, i) in detail.history || []"
-            :key="i"
-            :timestamp="fmtTime(h.endTime || h.startTime)"
-            :type="h.endTime ? 'success' : 'primary'"
-          >
-            <div class="node-title">{{ h.taskName }}</div>
-            <div class="node-meta">办理人：{{ h.assignee || '-' }}</div>
-            <div v-if="h.comment" class="node-comment">意见：{{ h.comment }}</div>
-          </el-timeline-item>
-        </el-timeline>
-      </template>
+    <el-drawer v-model="progressVisible" title="流程进度" size="640px">
+      <FlowDetailPanel v-if="current.procInstId" :proc-inst-id="current.procInstId" diagram-height="320px" />
     </el-drawer>
   </div>
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { workflowApi } from '../../api'
 import { fmtTime } from '../../utils/format'
-
-const FLOW_STATUS = {
-  RUNNING: { label: '审批中', type: 'warning' },
-  APPROVED: { label: '已通过', type: 'success' },
-  REJECTED: { label: '已驳回', type: 'danger' },
-  STOPPED: { label: '已终止', type: 'info' }
-}
-
-const BIZ_LABELS = {
-  ques_item_audit: '题目审核',
-  material_audit: '资料审核'
-}
-const bizLabel = (b) => BIZ_LABELS[b] || b || '-'
+import { FLOW_STATUS, STATUS_OPTIONS, bizLabel } from '../../utils/workflow'
+import FlowDetailPanel from '../../components/workflow/FlowDetailPanel.vue'
 
 const loading = ref(false)
 const list = ref([])
-const detailVisible = ref(false)
-const detail = ref(null)
+const query = reactive({ title: '', status: '' })
+const progressVisible = ref(false)
+const current = ref({})
+
+const filteredList = computed(() => {
+  const keyword = query.title.trim()
+  if (!keyword) return list.value
+  return list.value.filter((row) => (row.title || '').includes(keyword))
+})
 
 async function loadList() {
   loading.value = true
   try {
-    list.value = (await workflowApi.myStarted()) || []
+    const data = (await workflowApi.myStarted()) || []
+    list.value = query.status ? data.filter((row) => row.status === query.status) : data
   } finally {
     loading.value = false
   }
 }
 
-async function openDetail(row) {
-  detail.value = await workflowApi.detail(row.procInstId)
-  detailVisible.value = true
+function resetQuery() {
+  query.title = ''
+  query.status = ''
+  loadList()
+}
+
+function openProgress(row) {
+  current.value = row
+  progressVisible.value = true
+}
+
+async function stopRow(row) {
+  try {
+    const { value } = await ElMessageBox.prompt('终止后流程不可恢复，请填写终止原因', '终止流程', {
+      confirmButtonText: '确认终止',
+      cancelButtonText: '取消',
+      inputPlaceholder: '终止原因（可空）'
+    })
+    await workflowApi.stopInstance(row.procInstId, { comment: (value || '').trim() })
+    ElMessage.success('流程已终止')
+    loadList()
+  } catch (e) {
+    if (e !== 'cancel' && e !== 'close') throw e
+  }
 }
 
 onMounted(loadList)
 </script>
 
 <style scoped>
-.node-title { font-weight: 600; }
-.node-meta { color: #909399; font-size: 13px; margin-top: 4px; }
-.node-comment { color: #606266; font-size: 13px; margin-top: 4px; }
+.toolbar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
 </style>

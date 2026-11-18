@@ -1,0 +1,24 @@
+{
+  "name": "RuoYiFlowableExt",
+  "uri": "http://flowable.org/bpmn",
+  "prefix": "flowable",
+  "xml": { "tagAlias": "lowerCase" },
+  "types": [
+    {
+      "name": "ApprovalExt",
+      "superClass": ["Element"],
+      "properties": [
+        { "name": "assigneeType", "type": "String", "isAttr": true },
+        { "name": "assigneeValue", "type": "String", "isAttr": true },
+        { "name": "emptyStrategy", "type": "String", "isAttr": true },
+        { "name": "multiMode", "type": "String", "isAttr": true },
+        { "name": "rejectTarget", "type": "String", "isAttr": true },
+        { "name": "copyUsers", "type": "String", "isAttr": true },
+        { "name": "timeoutHours", "type": "Integer", "isAttr": true },
+        { "name": "notifyIntervalHours", "type": "Integer", "isAttr": true },
+        { "name": "autoAgree", "type": "Boolean", "isAttr": true },
+        { "name": "bizOperations", "type": "String", "isAttr": true }
+      ]
+    }
+  ]
+}
