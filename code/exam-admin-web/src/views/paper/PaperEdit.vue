@@ -14,7 +14,10 @@
         <el-row :gutter="20">
           <el-col :span="12">
             <el-form-item label="试卷名称" required>
-              <el-input v-model="form.paperName" placeholder="请输入试卷名称" maxlength="100" />
+              <div class="name-check-row">
+                <el-input v-model="form.paperName" placeholder="请输入试卷名称" maxlength="100" style="flex: 1; min-width: 0" />
+                <el-button type="primary" :disabled="isSealed" :loading="nameChecking" @click="checkPaperName">试卷名重复检查</el-button>
+              </div>
             </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -45,7 +48,7 @@
             <el-form-item label="全考生同卷">
               <el-switch v-model="form.samePaperForAll" />
               <span style="margin-left: 8px; color: #909399; font-size: 12px">
-                {{ form.samePaperForAll ? '首次抽题后缓存，全考生同一套卷' : '一人一卷，进入考试时生成' }}
+                {{ form.samePaperForAll ? '首次抽题后缓存，全考生同一套卷' : '一人一卷，进入测试时生成' }}
               </span>
             </el-form-item>
           </el-col>
@@ -295,6 +298,27 @@ const route = useRoute()
 const router = useRouter()
 const isEdit = computed(() => !!route.params.id)
 const paperId = route.params.id
+
+// 试卷名重复检查
+const nameChecking = ref(false)
+async function checkPaperName() {
+  const name = (form.paperName || '').trim()
+  if (!name) {
+    ElMessage.warning('请先输入试卷名称')
+    return
+  }
+  nameChecking.value = true
+  try {
+    const d = await paperApi.nameCheck({ paperName: name, excludeId: isEdit.value ? paperId : undefined })
+    if (d && d.exists) {
+      ElMessage.error('试卷名称已存在，请更换名称')
+    } else {
+      ElMessage.success('试卷名称可用')
+    }
+  } finally {
+    nameChecking.value = false
+  }
+}
 
 const saving = ref(false)
 const isSealed = ref(false)
@@ -598,3 +622,11 @@ onMounted(() => {
   if (isEdit.value) loadDetail()
 })
 </script>
+
+<style scoped>
+.name-check-row {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+</style>

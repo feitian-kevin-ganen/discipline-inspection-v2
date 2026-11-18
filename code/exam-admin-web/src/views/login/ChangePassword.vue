@@ -58,6 +58,8 @@ async function submit() {
       newPassword: form.newPassword
     })
     ElMessage.success('密码修改成功，请重新登录')
+    localStorage.removeItem('mgmt_accessToken')
+    localStorage.removeItem('mgmt_refreshToken')
     localStorage.removeItem('accessToken')
     localStorage.removeItem('refreshToken')
     router.push('/login')

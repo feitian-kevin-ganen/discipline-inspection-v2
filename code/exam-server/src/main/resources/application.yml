@@ -4,11 +4,14 @@ server:
 spring:
   application:
     name: exam-server
+  profiles:
+    # local：本机模拟国联单点登录（MockGuolianTicketClient），目标机不要激活
+    active: local
   datasource:
-    driver-class-name: org.postgresql.Driver
-    url: jdbc:postgresql://127.0.0.1:5434/exam_db?stringtype=unspecified
-    username: postgres
-    password: postgres
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://127.0.0.1:3306/exam_db?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: exam_admin
+    password: Exam@Local2026
     hikari:
       maximum-pool-size: 5
       minimum-idle: 1
@@ -47,6 +50,21 @@ exam:
     secret: 9f4c2a7b8d1e3f5061728394a5b6c7d8e9f0a1b2c3d4e5f60718293a4b5c6d7e8
     access-expire-seconds: 43200
     refresh-expire-seconds: 604800
+  # AI 辅助生题（国联集团模型平台，OpenAI 兼容协议；手册 https://glai2.wuxidata.com.cn:4001/doc/AI模型使用手册.html）
+  ai-gen:
+    # model=真实大模型；mock=本地模拟生成（无 key 环境/演示）
+    mode: model
+    base-url: https://glai2.wuxidata.com.cn:4001
+    # API Key（小写 sk- 开头）；jar 内默认为空，必须由外部配置注入
+    api-key: ''
+    model: deepseek-v4-flash
+    timeout-seconds: 180
+    max-tokens: 8192
+    ocr-model: PaddleOCR
+    # 扫描版 PDF OCR 最大页数（超出部分不参与出题）
+    ocr-max-pages: 10
+    # 送模型正文字符上限
+    text-max-chars: 4500
   minio:
     endpoint: http://127.0.0.1:9000
     # 预签名 URL 对外地址（外网可达）；不配置则回退 endpoint

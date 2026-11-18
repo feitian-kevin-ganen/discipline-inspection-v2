@@ -44,11 +44,11 @@ function forceLogin(msg) {
 async function retryWithLatestToken(config) {
   const usedToken = (config.headers && config.headers.Authorization || '').replace('Bearer ', '')
   await new Promise((r) => setTimeout(r, 300))
-  const latest = localStorage.getItem('accessToken') || ''
+  const latest = localStorage.getItem('web_accessToken') || ''
   if (latest && latest !== usedToken) {
     const store = useUserStore()
     store.accessToken = latest
-    store.refreshToken = localStorage.getItem('refreshToken') || store.refreshToken
+    store.refreshToken = localStorage.getItem('web_refreshToken') || store.refreshToken
     return request(config)
   }
   return null
@@ -68,8 +68,9 @@ request.interceptors.response.use(
     const config = response.config
     if (!body || typeof body.code === 'undefined') return body
     if (body.code === 0) return body.data
-    // token 过期：静默刷新后重放一次
-    if (body.code === 10002 && !config._retried && !config.url.includes('/auth/')) {
+    // token 过期：静默刷新后重放一次（登录类白名单接口除外，避免无效刷新和跳转死循环）
+    if (body.code === 10002 && !config._retried
+        && !config.url.includes('/auth/') && !config.url.includes('/integration/')) {
       config._retried = true
       try {
         await doRefreshToken()
@@ -92,7 +93,8 @@ request.interceptors.response.use(
   async (error) => {
     const { response, config } = error
     if (response) {
-      if (response.status === 401 && config && !config._retried && !config.url.includes('/auth/')) {
+      if (response.status === 401 && config && !config._retried
+          && !config.url.includes('/auth/') && !config.url.includes('/integration/')) {
         config._retried = true
         try {
           await doRefreshToken()

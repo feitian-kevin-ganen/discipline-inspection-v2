@@ -101,7 +101,7 @@
       <li>打开微信开发者工具，选择「导入项目」。</li>
       <li>项目目录选择 <code>code/exam-miniprogram</code>。</li>
       <li>AppID 已配置为 <code>touristappid</code>（测试号），可直接导入；也可填入自己的小程序 AppID。</li>
-      <li>开发期已通过 <code>project.config.json</code> 的 <code>urlCheck:false</code> 关闭域名校验，可直连内网后端 <code>http://10.110.40.160:8088</code>。</li>
+      <li>开发期已通过 <code>project.config.json</code> 的 <code>urlCheck:false</code> 关闭域名校验，可直连内网后端 <code>http://10.110.10.160:8088</code>。</li>
       <li>编译运行后先进入登录页，测试考生账号：<code>ks001 / Exam@123</code>。</li>
     </ol>
     <div class="note">
@@ -132,7 +132,7 @@
     <h2>接口配置说明</h2>
     <p>统一封装在 <code>utils/request.js</code>：</p>
     <ul>
-      <li>API base：<code>http://10.110.40.160:8088/api/v1</code></li>
+      <li>API base：<code>http://10.110.10.160:8088/api/v1</code></li>
       <li>统一响应 <code>{code, message, data}</code>，code=0 成功，业务错误统一 toast</li>
       <li>JWT 认证：请求头 <code>Authorization: Bearer &lt;accessToken&gt;</code></li>
       <li>HTTP 401 / code 10002：refreshToken 静默刷新并重放原请求，失败回登录页</li>
@@ -144,10 +144,10 @@
   <div class="phone-wrap">
     <div class="phone">
       <div class="phone-bar">功能等效预览（H5 界面）</div>
-      <iframe src="http://10.110.40.160:6001" title="H5 考生端预览"></iframe>
+      <iframe src="http://10.110.10.160:6001" title="H5 考生端预览"></iframe>
     </div>
     <div class="phone-caption">
-      上方 iframe 内嵌的是同一后端的 H5 考生端（http://10.110.40.160:6001），仅作功能等效预览；原生小程序的实际界面与交互以微信开发者工具 / 真机为准。
+      上方 iframe 内嵌的是同一后端的 H5 考生端（http://10.110.10.160:6001），仅作功能等效预览；原生小程序的实际界面与交互以微信开发者工具 / 真机为准。
     </div>
   </div>
 </body>

@@ -76,6 +76,16 @@ public class LStatController {
         return Result.ok(learnStatService.ranking(rankType, orgId, periodType, startDate, endDate, topN));
     }
 
+    /** LSTAT-06 已完成资料名称清单（悬停提示，userId/orgId 二选一） */
+    @GetMapping("/admin/lstat/completed-materials")
+    public Result<List<String>> completedMaterials(@RequestParam(required = false) Long userId,
+                                                   @RequestParam(required = false) Long orgId,
+                                                   @RequestParam(required = false) String periodType,
+                                                   @RequestParam(required = false) String startDate,
+                                                   @RequestParam(required = false) String endDate) {
+        return Result.ok(learnStatService.completedMaterialTitles(userId, orgId, periodType, startDate, endDate));
+    }
+
     /** LSTAT-05 学习统计导出 Excel（同步写响应流） */
     @GetMapping("/admin/lstat/export")
     public void export(@RequestParam String exportType,

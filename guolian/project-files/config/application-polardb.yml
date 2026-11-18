@@ -1,0 +1,90 @@
+server:
+  port: 8088
+
+spring:
+  application:
+    name: exam-server
+  datasource:
+    # 源环境 MySQL 数据库
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://10.110.40.125:3306/exam_db?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true&zeroDateTimeBehavior=convertToNull
+    username: exam_admin
+    password: 'Oh]fT>*PA&,6'
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 1
+  data:
+    redis:
+      host: 127.0.0.1
+      port: 6379
+      timeout: 5s
+  servlet:
+    multipart:
+      max-file-size: 500MB
+      max-request-size: 500MB
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: Asia/Shanghai
+    default-property-inclusion: always
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+  global-config:
+    banner: false
+    db-config:
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+exam:
+  jwt:
+    secret: 9f4c2a7b8d1e3f5061728394a5b6c7d8e9f0a1b2c3d4e5f60718293a4b5c6d7e8
+    access-expire-seconds: 43200
+    refresh-expire-seconds: 604800
+  # AI 辅助生题（国联集团模型平台，OpenAI 兼容协议；手册 https://glai2.wuxidata.com.cn:4001/doc/AI模型使用手册.html）
+  ai-gen:
+    # model=真实大模型；mock=本地模拟生成（无 key 环境/演示）
+    mode: model
+    base-url: https://glai2.wuxidata.com.cn:4001
+    # API Key（小写 sk- 开头）；jar 内默认为空，必须由外部配置注入
+    api-key: sk-PjrzWGGYE5cCeO8yf7V1Bw
+    model: deepseek-v4-flash
+    timeout-seconds: 180
+    max-tokens: 8192
+    ocr-model: PaddleOCR
+    # 扫描版 PDF OCR 最大页数（超出部分不参与出题）
+    ocr-max-pages: 10
+    # 送模型正文字符上限
+    text-max-chars: 4500
+  minio:
+    endpoint: http://127.0.0.1:9000
+    # 预签名 URL 对外地址（外网可达）；不配置则回退 endpoint
+    public-endpoint: http://10.110.40.163:9000
+    access-key: minioadmin
+    secret-key: minioadmin
+    bucket: exam-files
+  # ffmpeg 可执行文件路径：视频资料上传时自动抽帧生成封面
+  ffmpeg-path: /root/AIExamK3/middleware/ffmpeg
+  integration:
+    guolian:
+      # 数字国联 APP 开放平台域名（测试环境；生产环境换 IP 即可）
+      base-url: http://10.20.8.8:32389
+      # 系统来源标识（clientId）
+      client-id: guolian-jijian
+      # 能开平台 SSO 接口请求头 x-gateway-host（生产环境更换）
+      gateway-host: dflw9c81mnwwnejj.apigateway.inc.alipay.net
+      # 开发者门户创建应用后分配的 AK/SK（配置后启用鉴权模式；留空则按"无需鉴权"模式调用）
+      access-key: 'yv1ftGWERni3gTzN'
+      secret-key: 'tey40AwC64S1NJFS2K1FZ9yeG5dDKmK2'
+
+logging:
+  level:
+    root: info
+    com.group.exam: info

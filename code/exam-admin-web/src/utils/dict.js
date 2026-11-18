@@ -20,7 +20,8 @@ export const orgTypeName = (v) => (ORG_TYPES.find((t) => t.value === v) || {}).l
 export const USER_STATUS = {
   0: { label: '停用', type: 'info' },
   1: { label: '正常', type: 'success' },
-  2: { label: '锁定', type: 'danger' }
+  2: { label: '锁定', type: 'danger' },
+  3: { label: '需改密', type: 'warning' }
 }
 
 export const MATERIAL_TYPES = {
@@ -91,7 +92,7 @@ export const EXAM_STATUS = {
 
 export const SHEET_STATUS = {
   NOT_ENTERED: { label: '未进入', type: 'info' },
-  IN_EXAM: { label: '考试中', type: 'warning' },
+  IN_EXAM: { label: '测试中', type: 'warning' },
   SUBMITTED: { label: '已交卷', type: 'success' },
   FORCED: { label: '强制收卷', type: 'danger' },
   ABSENT: { label: '缺考', type: 'info' }
@@ -109,7 +110,7 @@ export const REVIEW_TYPES = {
 }
 
 export const NOTICE_TYPES = {
-  EXAM: '考试通知',
+  EXAM: '测试通知',
   SCORE: '成绩发布',
   LEARN_TASK: '学习任务',
   GENERAL: '通用通知'

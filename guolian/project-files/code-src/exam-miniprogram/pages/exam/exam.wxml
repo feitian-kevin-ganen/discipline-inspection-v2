@@ -1,0 +1,53 @@
+<view>
+  <view class="tabs">
+    <view class="tab {{active === 'TODO' ? 'tab-active' : ''}}" data-name="TODO" bindtap="onTabTap">待考</view>
+    <view class="tab {{active === 'HISTORY' ? 'tab-active' : ''}}" data-name="HISTORY" bindtap="onTabTap">历史</view>
+  </view>
+
+  <view wx:if="{{!loading && list.length === 0}}" class="page-empty">{{active === 'TODO' ? '暂无待考考试' : '暂无历史考试'}}</view>
+
+  <view wx:for="{{list}}" wx:key="examId" class="card exam-card">
+    <view class="exam-head">
+      <text class="exam-name ellipsis">{{item.examName}}</text>
+      <text class="tag {{item.statusClass}}">{{item.statusText}}</text>
+    </view>
+    <view class="text-muted exam-meta">
+      <view>考试时间：{{item.startTime}} ~ {{item.endTime}}</view>
+      <view>时长：{{item.durationMin}} 分钟</view>
+      <view wx:if="{{active === 'TODO' && !item.canEnter && item.cannotEnterReason}}" class="text-danger">
+        {{item.cannotEnterReason}}
+      </view>
+    </view>
+    <view class="exam-actions">
+      <block wx:if="{{active === 'TODO'}}">
+        <button
+          wx:if="{{item.mySheetStatus === 'IN_EXAM'}}"
+          class="btn-primary exam-btn"
+          data-id="{{item.examId}}"
+          data-name="{{item.examName}}"
+          bindtap="resumeExam"
+        >继续答题</button>
+        <button
+          wx:else
+          class="btn-primary exam-btn"
+          disabled="{{!item.canEnter}}"
+          data-id="{{item.examId}}"
+          data-name="{{item.examName}}"
+          bindtap="goNotice"
+        >进入考试</button>
+      </block>
+      <block wx:else>
+        <button
+          wx:if="{{item.scoreVisible}}"
+          class="btn-primary exam-btn btn-plain"
+          data-id="{{item.examId}}"
+          bindtap="goResult"
+        >查看成绩</button>
+        <button wx:else class="exam-btn btn-disabled" disabled>{{item.statusText}}</button>
+      </block>
+    </view>
+  </view>
+
+  <view wx:if="{{loading}}" class="list-tip">加载中...</view>
+  <view wx:elif="{{finished && list.length > 0}}" class="list-tip">没有更多了</view>
+</view>

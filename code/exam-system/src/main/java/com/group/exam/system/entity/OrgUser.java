@@ -57,6 +57,9 @@ public class OrgUser {
     /** 微信开放平台unionid(V1.1)，未绑定开放平台可为空 */
     private String unionid;
 
+    /** 国联APP员工ID(V1.3)，ticket免密登录时按此匹配，可为空 */
+    private String empId;
+
     private Long createBy;
 
     private LocalDateTime createTime;
@@ -201,6 +204,14 @@ public class OrgUser {
 
     public void setUnionid(String unionid) {
         this.unionid = unionid;
+    }
+
+    public String getEmpId() {
+        return empId;
+    }
+
+    public void setEmpId(String empId) {
+        this.empId = empId;
     }
 
     public Long getCreateBy() {

@@ -69,7 +69,7 @@ public class CandidateService extends ServiceImpl<ExamCandidateMapper, ExamCandi
         }
         long sheetCount = answerSheetMapper.selectCount(new QueryWrapper<AnswerSheet>().eq("session_id", examId));
         if (sheetCount > 0) {
-            throw new BizException(ErrorCode.SESSION_STATUS_INVALID, "已有考生进入考试，禁止重建名单");
+            throw new BizException(ErrorCode.SESSION_STATUS_INVALID, "已有考生进入测试，禁止重建名单");
         }
         // 逐范围展开在册人员（含/不含下级），越权 10004
         Map<Long, OrgUser> users = new LinkedHashMap<>();
@@ -279,7 +279,7 @@ public class CandidateService extends ServiceImpl<ExamCandidateMapper, ExamCandi
         List<Map<String, Object>> skipped = new ArrayList<>();
         for (Long userId : new LinkedHashSet<>(userIds)) {
             if (sheetUsers.contains(userId)) {
-                skipped.add(skipItem(userId, "已进入考试，不可剔除，可单独强制收卷"));
+                skipped.add(skipItem(userId, "已进入测试，不可剔除，可单独强制收卷"));
                 continue;
             }
             ExamCandidate existing = getOne(new QueryWrapper<ExamCandidate>()
@@ -297,7 +297,7 @@ public class CandidateService extends ServiceImpl<ExamCandidateMapper, ExamCandi
         return result;
     }
 
-    // ---------------------------------------------------------------- EXAM-11 推送考试通知
+    // ---------------------------------------------------------------- EXAM-11 推送测试通知
 
     @Transactional(rollbackFor = Exception.class)
     public Map<String, Object> notify(Long examId, String message, List<String> channels, List<Long> userIds) {
@@ -317,9 +317,9 @@ public class CandidateService extends ServiceImpl<ExamCandidateMapper, ExamCandi
         } else {
             receiverIds = candidates.stream().map(ExamCandidate::getUserId).toList();
         }
-        String title = "考试通知：" + session.getSessionName();
+        String title = "测试通知：" + session.getSessionName();
         String content = StringUtils.hasText(message) ? message
-                : "请按时参加考试[" + session.getSessionName() + "]";
+                : "请按时参加测试[" + session.getSessionName() + "]";
         // channels 目前仅支持 INBOX（站内消息），SMS/WECOM 预留忽略
         sysNoticeService.sendBatch(1, title, content, "session", examId, receiverIds);
         update(new com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper<ExamCandidate>()

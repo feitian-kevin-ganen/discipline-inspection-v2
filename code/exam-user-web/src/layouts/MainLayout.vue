@@ -3,7 +3,7 @@
     <el-header class="header" height="56px">
       <div class="brand">
         <el-icon :size="22" color="#fff"><Medal /></el-icon>
-        <span>纪检监察在线考试系统 · 用户端</span>
+        <span>“纪检监察业务”学习平台 · 用户端</span>
       </div>
       <div class="right">
         <el-dropdown @command="onCommand">
@@ -32,8 +32,11 @@
           <el-menu-item index="/learn/tasks">
             <el-icon><List /></el-icon><span>学习任务</span>
           </el-menu-item>
+          <el-menu-item index="/practice">
+            <el-icon><Notebook /></el-icon><span>日常练习</span>
+          </el-menu-item>
           <el-menu-item index="/exam">
-            <el-icon><EditPen /></el-icon><span>考试中心</span>
+            <el-icon><EditPen /></el-icon><span>测试中心</span>
           </el-menu-item>
           <el-menu-item index="/score">
             <el-icon><Trophy /></el-icon><span>我的成绩</span>
@@ -70,6 +73,7 @@ const activeMenu = computed(() => {
   const p = route.path
   if (p.startsWith('/learn/tasks')) return '/learn/tasks'
   if (p.startsWith('/learn')) return '/learn'
+  if (p.startsWith('/practice')) return '/practice'
   if (p.startsWith('/exam')) return '/exam'
   if (p.startsWith('/score')) return '/score'
   if (p.startsWith('/mark')) return '/mark'

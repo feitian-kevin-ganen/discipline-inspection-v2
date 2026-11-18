@@ -1,0 +1,746 @@
+JAVA SDK使用
+1. 引入SDK
+  方式1：maven 直接引入
+  方式2：包引入，常用方式
+       1 项目中添加 libs 文件夹，并添加网关 sdk
+       2 Idea 将jar 导入
+       3 添加maven 依赖
+2. 初始化客户端
+3. 方法调用
+  3.1. POST 方法
+    3.1.1. 以content-type为application/json的方式发送请求
+    3.1.2. 以content-type为x-www-form-urlencoded的方式发送请求
+  3.2. GET 方法
+  3.3. DELETE 方法
+  3.4. PUT 方法
+  完整示例
+4. 错误码
+包版本
+
+1.   引入SDK
+方式1：maven 直接引入
+                                                        PL/SQL
+ 1   <dependency>
+ 2       <groupId>com.alipay.sofa</groupId>
+ 3       <artifactId>gateway-sdk</artifactId>
+ 4       <version>${gateway.sdk.version}</version>
+ 5   </dependency>
+
+
+
+
+                                                                 1
+这种方式要求用户仓库有网关包
+
+方式2：包引入，常用方式
+包版本：
+ ● 📎gateway-sdk-2.6.8.jar
+
+
+
+依赖包：
+ ● 📎fastjson-1.2.83_noneautotype.jar
+ ● 📎tomitribe-http-signatures-1.0.jar
+
+
+
+
+1 项目中添加 libs 文件夹，并添加网关 sdk
+
+
+
+
+2 Idea 将jar 导入
+打开项目设置，选择 Libraries -> Java
+
+
+
+
+                                        2
+然后选择对应的文件夹下的jar 导入即可
+3 添加maven 依赖
+                                                                      PL/SQL
+  1   <dependency>
+  2       <groupId>org.tomitribe</groupId>
+  3       <artifactId>tomitribe-http-signatures</artifactId>
+  4       <version>1.0</version>
+  5   </dependency>
+  6
+  7   <dependency>
+  8       <groupId>com.alibaba</groupId>
+  9       <artifactId>fastjson</artifactId>
+ 10       <version>1.2.48</version>
+ 11   </dependency>
+ 12
+ 13   <dependency>
+ 14       <groupId>com.alipay.sofa</groupId>
+ 15       <artifactId>gateway-sdk</artifactId>
+ 16       <version>${gateway.sdk.version}</version>
+ 17       <scope>system</scope>
+ 18       <systemPath>${pom.basedir}/libs/gateway-sdk-${gateway.sdk.version}.jar
+      </systemPath>
+ 19   </dependency>
+
+
+
+
+                                                                               3
+${gateway.sdk.version} 是实际版本，例如:
+                                                                      PL/SQL
+  1   <dependency>
+  2       <groupId>org.tomitribe</groupId>
+  3       <artifactId>tomitribe-http-signatures</artifactId>
+  4       <version>1.0</version>
+  5   </dependency>
+  6
+  7   <dependency>
+  8       <groupId>com.alibaba</groupId>
+  9       <artifactId>fastjson</artifactId>
+ 10       <version>1.2.83_noneautotype</version>
+ 11   </dependency>
+ 12
+ 13   <dependency>
+ 14       <groupId>com.alipay.sofa</groupId>
+ 15       <artifactId>gateway-sdk</artifactId>
+ 16       <version>2.6.4</version>
+ 17       <scope>system</scope>
+ 18       <systemPath>${pom.basedir}/libs/gateway-sdk-2.6.4.jar</systemPath>
+ 19   </dependency>
+
+
+
+
+2.   初始化客户端
+
+
+
+
+                                                                               4
+                                                                            Java
+  1      private String subAppAccessKey = "UH4tR0Tr4XnclIA8d";
+  2      private String subAppSecretKey = "060WysxEmlujA4wsNKU1JOUOZNpzdSoY";
+  3      private String gatewayUrl = "http://30.30.185.99:8088";
+  4
+  5      private ApiClient apiClient;
+  6
+  7
+  8      public void initClient() {
+  9          // 初始化请求客户端
+ 10          ApiSecretKey apiSecretKey = new ApiSecretKey(subAppAccessKey, subAppSe
+         cretKey);
+ 11          List<ApiSecretKey> secretKeys = new ArrayList<>();
+ 12          secretKeys.add(apiSecretKey);
+ 13          // 需要鉴权，默认要求使用该模式
+ 14          apiClient = new DefaultApiClient(gatewayUrl, secretKeys);
+ 15
+ 16          // 如果无需鉴权，可以按下面方式初始化
+ 17          // apiClient = new DefaultApiClient(gatewayUrl);
+ 18
+ 19      }
+
+
+
+
+3.   方法调用
+3.1.   POST 方法
+3.1.1.   以content-type为application/json的方式发送请求
+
+
+
+
+                                                                                   5
+                                                                            Java
+  1      GwSdkApiRequest request = new GwSdkApiRequest();
+  2      // 必填，设置路径
+  3      request.setPath("alipay/trade/submit");
+  4      // 必填，设置为   请求
+                      POST
+  5      request.setRequestType("POST");
+  6      // 必填，设置网关的     header
+  7      request.getHeaderParams().put("x-gateway-host", "bl5bnspltgdxo6kk.test");
+  8
+  9      Map<String, Object> body = new HashMap<>();
+ 10      body.put("merchantId", "1111");
+ 11      body.put("userId", "2222");
+ 12      body.put("amount", 100);
+ 13      // 设置 body，可以是用户自定义的模型对象，最后会转化为json
+ 14      request.setBody(body);
+ 15
+ 16      //也可以直接传    jsonstring
+ 17      //request.setBody(JSON.toJSONString(body));
+ 18
+ 19      // 是否对响应进行签名校验 默认是   ,      false。
+ 20      request.setClientCheckSign(false);
+ 21
+ 22      ApiResponse response = apiClient.execute(request,
+ 23                                               new ObjectJsonParser<>(request.ge
+         tResponseClass()));
+ 24
+ 25      // 根据返回码判断是否成功，是标准的   返回码     http
+ 26      if (response.getResponseCode() != 200) {
+ 27                  请求下游失败，错误码： 返回内容：{}",
+             LOGGER.error("                  {},              response.getResponse
+         Code(), response.getBody());
+ 28          return null;
+ 29      }
+ 30
+ 31      // 获取    内容
+               body
+ 32      String responseBody = response.getBody();
+ 33      // 获取返回的   header 内容
+ 34      Map<String, List<String>> headers = response.getHeaders();
+
+
+
+3.1.2.   以content-type为x-www-form-urlencoded的方式发送请求
+
+
+                                                                                     6
+                                                                         Java
+  1   GwSdkApiRequest request = new GwSdkApiRequest();
+  2
+  3   // 必填，设置为   请求
+                   POST
+  4   request.setRequestType("POST");
+  5   // 必填，设置网关的     header
+  6   request.getHeaderParams().put("x-gateway-host", "bl5bnspltgdxo6kk.test");
+  7
+  8   Map<String, Object> body = new HashMap<>();
+  9   body.put("merchantId", "1111");
+ 10   body.put("userId", "2222");
+ 11   body.put("amount", 100);
+ 12   // 将    转为为
+           body          ，与
+                    string      进行拼接
+                             path
+ 13
+ 14
+ 15   // 必填，设置路径
+ 16   String path = "alipay/trade/submit";
+ 17   request.setPath(path);
+ 18
+ 19   // 是否对响应进行签名校验 默认是    ,     false。
+ 20   request.setClientCheckSign(false);
+ 21     在    中设置
+      // header        为
+                     Content-Type application/x-www-form-urlencoded
+ 22   request.getHeaderParams().put("Content-Type", "application/x-www-form-urle
+      ncoded");
+ 23
+ 24   ApiResponse response = apiClient.execute(request,
+ 25                                            new ObjectJsonParser<>(request.ge
+      tResponseClass()));
+ 26
+ 27   // 根据返回码判断是否成功，是标准的   返回码     http
+ 28   if (response.getResponseCode() != 200) {
+ 29               请求下游失败，错误码： 返回内容：{}",
+          LOGGER.error("                  {},              response.getResponse
+      Code(), response.getBody());
+ 30       return null;
+ 31   }
+ 32
+ 33   // 获取    内容
+            body
+ 34   String responseBody = response.getBody();
+ 35   // 获取返回的   header 内容
+ 36   Map<String, List<String>> headers = response.getHeaders();
+
+
+
+
+参数解释：
+ ● setPath() ： 设置对应的路径
+
+
+                                                                                  7
+ ●   setRequestType()： 设置请求类型，包括GET/POST/DELETE/PUT 。 POST 则传POST
+ ●   setBody(): 使用POST 和PUT时需要将参数设置到body里。body 支持设置任意对象，即用户可以
+     自定义自己的模型对象，传输时会将对象转化为json。
+ ●   request.getHeaderParams().put(xxx, xxx): 用来设置请求的header, 网关要求x-gateway-host
+     是必传的。
+ ●   setClientCheckSign()： 是否检查响应进行签名校验，一般设置为false，默认为false.
+ ●   ApiResponse 是返回的结果：
+       ○ getResponseCode(): 获取返回的错误码
+       ○ getBody(): 获取返回的body
+       ○ getHeaders(): 获取返回的header 内容
+
+
+
+3.2.   GET 方法
+
+
+
+
+                                                                                  8
+                                                                         Java
+  1   GwSdkApiRequest request = new GwSdkApiRequest();
+  2   // 必填，设置路径
+  3   request.setPath("alipay/trade/query");
+  4   // 必填，设置为 请求 GET
+  5   request.setRequestType("GET");
+  6   // 必填，设置网关的      header
+  7   request.getHeaderParams().put("x-gateway-host", "bl5bnspltgdxo6kk.test");
+  8   // 设置请求参数， 和   GET DELETE 按这个方式设置参数
+  9   request.getBizParams().put("transId", "xxx");
+ 10
+ 11   // 选填，是否对响应进行签名校验
+ 12   request.setClientCheckSign(false);
+ 13
+ 14   // 请求
+ 15   ApiResponse response = apiClient.execute(request,
+ 16                                            new ObjectStringParser<>(request.
+      getResponseClass()));
+ 17
+ 18   // 根据返回码判断是否成功，是标准的   返回码     http
+ 19   if (response.getResponseCode() != 200) {
+ 20               请求下游失败，错误码： 返回内容：{}",
+          LOGGER.error("                  {},              response.getResponse
+      Code(), response.getBody());
+ 21       return null;
+ 22   }
+ 23
+ 24   // 获取    内容
+            body
+ 25   String responseBody = response.getBody();
+ 26   // 获取返回的   header 内容
+ 27   Map<String, List<String>> headers = response.getHeaders();
+
+
+
+
+参数解释：
+ ● setPath() ： 设置对应的路径
+ ● setRequestType()： 设置请求类型，包括GET/POST/DELETE/PUT 。 POST 则传POST
+ ● request.getBizParams().put("transId", "xxx"): 设置业务的参数。
+ ● request.getHeaderParams().put(xxx, xxx): 用来设置请求的header, 网关要求x-gateway-host
+   是必传的。
+ ● setClientCheckSign()： 是否检查响应进行签名校验，一般设置为false，默认为false.
+ ● ApiResponse 是返回的结果：
+     ○ getResponseCode(): 获取返回的错误码
+
+
+                                                                                  9
+       ○   getBody(): 获取返回的body
+       ○   getHeaders(): 获取返回的header 内容
+
+3.3.   DELETE 方法
+                                                                              Java
+  1        GwSdkApiRequest request = new GwSdkApiRequest();
+  2        // 必填，设置路径
+  3        request.setPath("alipay/trade/delete");
+  4        // 必填，设置为 请求 GET
+  5        request.setRequestType("DELETE");
+  6        // 必填，设置网关的      header
+  7        request.getHeaderParams().put("x-gateway-host", "bl5bnspltgdxo6kk.test");
+  8        // 设置请求参数， 和   GET DELETE 按这个方式设置参数
+  9        request.getBizParams().put("transId", "xxx");
+ 10
+ 11        // 选填，是否对响应进行签名校验
+ 12        request.setClientCheckSign(false);
+ 13
+ 14        // 请求
+ 15        ApiResponse response = apiClient.execute(request,
+ 16                new ObjectStringParser<>(request.getResponseClass()));
+ 17
+ 18        // 根据返回码判断是否成功，是标准的   返回码     http
+ 19        if (response.getResponseCode() != 200) {
+ 20                    请求下游失败，错误码： 返回内容：{}",
+               LOGGER.error("                  {},              response.getResponse
+           Code(), response.getBody());
+ 21            return null;
+ 22        }
+ 23
+ 24        // 获取    内容
+                 body
+ 25        String responseBody = response.getBody();
+ 26        // 获取返回的   header 内容
+ 27        Map<String, List<String>> headers = response.getHeaders();
+
+
+
+
+参数解释：
+ ● setPath() ： 设置对应的路径
+ ● setRequestType()： 设置请求类型，包括GET/POST/DELETE/PUT 。 POST 则传POST
+ ● request.getBizParams().put("transId", "xxx"): 设置业务的参数。
+ ● request.getHeaderParams().put(xxx, xxx): 用来设置请求的header, 网关要求x-gateway-host
+
+
+                                                                                     10
+     是必传的。
+ ●   setClientCheckSign()： 是否检查响应进行签名校验，一般设置为false，默认为false.
+ ●   ApiResponse 是返回的结果：
+       ○ getResponseCode(): 获取返回的错误码
+       ○ getBody(): 获取返回的body
+       ○ getHeaders(): 获取返回的header 内容
+
+
+
+3.4.   PUT 方法
+
+
+
+
+                                                               11
+                                                                         Java
+  1   GwSdkApiRequest request = new GwSdkApiRequest();
+  2   // 必填，设置路径
+  3   request.setPath("alipay/trade/update");
+  4   // 必填，设置为   请求
+                   POST
+  5   request.setRequestType("POST");
+  6   // 必填，设置网关的     header
+  7   request.getHeaderParams().put("x-gateway-host", "bl5bnspltgdxo6kk.test");
+  8
+  9   Map<String, Object> body = new HashMap<>();
+ 10   body.put("merchantId", "1111");
+ 11   body.put("userId", "2222");
+ 12   body.put("amount", 100);
+ 13   // 设置 body，可以是用户自定义的模型对象，最后会转化为json
+ 14   request.setBody(body);
+ 15
+ 16   // 是否对响应进行签名校验 默认是   ,      false。
+ 17   request.setClientCheckSign(false);
+ 18
+ 19   ApiResponse response = apiClient.execute(request,
+ 20                                            new ObjectJsonParser<>(request.ge
+      tResponseClass()));
+ 21
+ 22   // 根据返回码判断是否成功，是标准的   返回码     http
+ 23   if (response.getResponseCode() != 200) {
+ 24               请求下游失败，错误码： 返回内容：{}",
+          LOGGER.error("                  {},              response.getResponse
+      Code(), response.getBody());
+ 25       return null;
+ 26   }
+ 27
+ 28   // 获取    内容
+            body
+ 29   String responseBody = response.getBody();
+ 30   // 获取返回的   header 内容
+ 31   Map<String, List<String>> headers = response.getHeaders();
+
+
+参数解释：
+ ● setPath() ： 设置对应的路径
+ ● setRequestType()： 设置请求类型，包括GET/POST/DELETE/PUT 。 POST 则传POST
+ ● setBody(): 使用POST 和PUT时需要将参数设置到body里。body 支持设置任意对象，即用户可以
+   自定义自己的模型对象，传输时会将对象转化为json。
+ ● request.getHeaderParams().put(xxx, xxx): 用来设置请求的header, 网关要求x-gateway-host
+   是必传的。
+
+                                                                                12
+●   setClientCheckSign()： 是否检查响应进行签名校验，一般设置为false，默认为false.
+●   ApiResponse 是返回的结果：
+      ○ getResponseCode(): 获取返回的错误码
+      ○ getBody(): 获取返回的body
+      ○ getHeaders(): 获取返回的header 内容
+
+
+
+完整示例
+
+
+
+
+                                                              13
+                                                                       Java
+ 1   public class GatewayTest {
+ 2       private String subAppAccessKey = "UH4tR0Tr4XnclIA8d";
+ 3
+ 4      private String subAppSecretKey = "060WysxEmlujA4wsNKU1JOUOZNpzdSoY";
+ 5
+ 6      private String gatewayUrl = "http://30.30.185.99:8088";
+ 7
+ 8      private ApiClient apiClient;
+ 9
+10       @Before
+11       public void initClient() {
+12           // 初始化请求客户端
+13           ApiSecretKey apiSecretKey = new ApiSecretKey(subAppAccessKey, sub
+     AppSecretKey);
+14           List<ApiSecretKey> secretKeys = new ArrayList<>();
+15           secretKeys.add(apiSecretKey);
+16           apiClient = new DefaultApiClient(gatewayUrl, secretKeys);
+17           // 如果无需鉴权
+18           // apiClient = new DefaultApiClient(gatewayUrl);
+19       }
+20
+21       @Test
+22       public void testPost() {
+23           GwSdkApiRequest request = new GwSdkApiRequest();
+24           // 必填，设置路径
+25           request.setPath("alipay/trade/submit");
+26           // 必填，设置为   请求
+                          POST
+27           request.setRequestType("POST");
+28           // 必填，设置网关的     header
+29           request.getHeaderParams().put("x-gateway-host", "bl5bnspltgdxo6k
+     k.test");
+30
+31           Map<String, Object> body = new HashMap<>();
+32           body.put("merchantId", "1111");
+33           body.put("userId", "2222");
+34           body.put("amount", 100);
+35           // 设置 body，可以是用户自定义的模型对象，最后会转化为json
+36           request.setBody(body);
+37
+38           // 是否对响应进行签名校验 默认是   ,      false。
+39           request.setClientCheckSign(false);
+40
+41           ApiResponse response = apiClient.execute(request,
+42                                                    new ObjectJsonParser<>(r
+     equest.getResponseClass()));
+
+
+                                                                              14
+43
+44
+45
+             // 根据返回码判断是否成功，是标准的   返回码     http
+             if (response.getResponseCode() != 200) {
+46
+                         请求下游失败，错误码： 返回内容：{}",
+                 LOGGER.error("                  {},              response.ge
+     tResponseCode(), response.getBody());
+47
+                 return null;
+48
+             }
+49
+50
+51
+             // 获取    内容
+                   body
+             String responseBody = response.getBody();
+52
+53
+             // 获取返回的   header 内容
+             Map<String, List<String>> headers = response.getHeaders();
+54
+        }
+55
+56
+         @Test
+57
+         public void testGet() {
+58
+             GwSdkApiRequest request = new GwSdkApiRequest();
+59
+60
+             // 必填，设置路径
+             request.setPath("alipay/trade/query");
+61
+62
+             // 必填，设置为 请求 GET
+             request.setRequestType("GET");
+63
+64
+             // 必填，设置网关的      header
+             request.getHeaderParams().put("x-gateway-host", "bl5bnspltgdxo6k
+     k.test");
+65
+66
+             // 设置请求参数， 和   GET DELETE 按这个方式设置参数
+             request.getBizParams().put("transId", "xxx");
+67
+68
+69
+             // 选填，是否对响应进行签名校验
+             request.setClientCheckSign(false);
+70
+71
+72
+             // 请求
+             ApiResponse response = apiClient.execute(request,
+73
+                                                      new ObjectStringParser<>
+     (request.getResponseClass()));
+74
+75
+76
+             // 根据返回码判断是否成功，是标准的   返回码     http
+             if (response.getResponseCode() != 200) {
+77
+                         请求下游失败，错误码： 返回内容：{}",
+                 LOGGER.error("                  {},              response.ge
+     tResponseCode(), response.getBody());
+78
+                 return null;
+79
+             }
+80
+81
+82
+             // 获取    内容
+                   body
+             String responseBody = response.getBody();
+83
+84
+             // 获取返回的   header 内容
+             Map<String, List<String>> headers = response.getHeaders();
+85
+        }
+86
+
+
+                                                                            15
+ 87
+ 88
+          @Test
+ 89
+          public void testDelete() {
+ 90
+              GwSdkApiRequest request = new GwSdkApiRequest();
+ 91
+ 92
+              // 必填，设置路径
+              request.setPath("alipay/trade/delete");
+ 93
+ 94
+              // 必填，设置为 请求 GET
+              request.setRequestType("DELETE");
+ 95
+ 96
+              // 必填，设置网关的      header
+              request.getHeaderParams().put("x-gateway-host", "bl5bnspltgdxo6k
+      k.test");
+ 97
+ 98
+              // 设置请求参数， 和   GET DELETE 按这个方式设置参数
+              request.getBizParams().put("transId", "xxx");
+ 99
+100
+101
+              // 选填，是否对响应进行签名校验
+              request.setClientCheckSign(false);
+102
+103
+104
+              // 请求
+              ApiResponse response = apiClient.execute(request,
+105
+                      new ObjectStringParser<>(request.getResponseClass()));
+106
+107
+108
+              // 根据返回码判断是否成功，是标准的   返回码     http
+              if (response.getResponseCode() != 200) {
+109
+                          请求下游失败，错误码： 返回内容：{}",
+                  LOGGER.error("                  {},              response.ge
+      tResponseCode(), response.getBody());
+110
+                  return null;
+111
+              }
+112
+113
+114
+              // 获取    内容
+                    body
+              String responseBody = response.getBody();
+115
+116
+              // 获取返回的   header 内容
+              Map<String, List<String>> headers = response.getHeaders();
+117
+         }
+118
+119
+          @Test
+120
+          public void testPut() {
+121
+              GwSdkApiRequest request = new GwSdkApiRequest();
+122
+123
+              // 必填，设置路径
+              request.setPath("alipay/trade/update");
+124
+125
+              // 必填，设置为   请求
+                           POST
+              request.setRequestType("POST");
+126
+127
+              // 必填，设置网关的     header
+              request.getHeaderParams().put("x-gateway-host", "bl5bnspltgdxo6k
+      k.test");
+128
+129
+              Map<String, Object> body = new HashMap<>();
+130
+              body.put("merchantId", "1111");
+131
+              body.put("userId", "2222");
+
+                                                                               16
+ 132           body.put("amount", 100);
+ 133
+ 134
+               // 设置 body，可以是用户自定义的模型对象，最后会转化为json
+               request.setBody(body);
+ 135
+ 136
+ 137
+               // 是否对响应进行签名校验 默认是   ,      false。
+               request.setClientCheckSign(false);
+ 138
+ 139
+               ApiResponse response = apiClient.execute(request,
+ 140
+                       new ObjectJsonParser<>(request.getResponseClass()));
+ 141
+ 142
+ 143
+               // 根据返回码判断是否成功，是标准的   返回码     http
+               if (response.getResponseCode() != 200) {
+ 144
+                           请求下游失败，错误码： 返回内容：{}",
+                   LOGGER.error("                  {},              response.ge
+       tResponseCode(), response.getBody());
+ 145
+                   return null;
+ 146
+               }
+ 147
+ 148
+ 149
+               // 获取    内容
+                     body
+               String responseBody = response.getBody();
+ 150
+ 151
+               // 获取返回的   header 内容
+               Map<String, List<String>> headers = response.getHeaders();
+ 152
+           }
+ 153
+       }
+
+
+
+
+4.   错误码
+分为网关结果码和http状态码，http状态码为ApiResponse中的responseCode的值，网关结果码为
+ApiResponse的headers中X-Sofagw-Result-Status的值，一般通过网关结果码查询具体的错误原因，
+判断是网关侧报错还是服务端报错
+
+
+
+
+                                                                              17
+完整的网关结果码如下
+https://help.aliyun.com/zh/sofa-apigateway/user-guide/error-code?
+spm=a2c4g.11174283.0.0.429dde53ZuAhcI
+
+包版本
+包版本：
+ ● 📎gateway-sdk-2.6.4.jar
+
+
+
+
+                                                                    18
+

@@ -23,7 +23,9 @@
         <el-table-column prop="valueType" label="值类型" width="100" />
         <el-table-column prop="defaultValue" label="默认值" min-width="140" show-overflow-tooltip />
         <el-table-column prop="updatedBy" label="最近修改人" width="110" />
-        <el-table-column prop="updatedTime" label="修改时间" width="170" />
+        <el-table-column label="修改时间" width="170">
+          <template #default="{ row }">{{ fmtTime(row.updatedTime) }}</template>
+        </el-table-column>
       </el-table>
     </div>
   </div>
@@ -33,6 +35,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { sysApi } from '../../api'
+import { fmtTime } from '../../utils/format'
 
 const GROUPS = ['EXAM', 'LEARN', 'QUES', 'LIB', 'STAT', 'SECURITY']
 

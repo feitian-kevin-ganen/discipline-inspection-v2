@@ -7,9 +7,10 @@ import org.apache.ibatis.annotations.Update;
 
 public interface SysLoginLogMapper extends BaseMapper<SysLoginLog> {
 
-    /** 登出时回填最近一次未登出记录的 logout_time */
+    /** 登出时回填最近一次未登出记录的 logout_time（子查询套派生表，规避 MySQL 1093：不能在 FROM 子句中更新目标表） */
     @Update("UPDATE t_sys_login_log SET logout_time = now() WHERE id = ("
+            + "SELECT id FROM ("
             + "SELECT id FROM t_sys_login_log WHERE user_id = #{userId} AND logout_time IS NULL "
-            + "ORDER BY login_time DESC LIMIT 1)")
+            + "ORDER BY login_time DESC LIMIT 1) t)")
     int markLogout(@Param("userId") Long userId);
 }

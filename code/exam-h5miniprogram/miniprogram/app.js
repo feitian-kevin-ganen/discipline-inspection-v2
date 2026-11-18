@@ -6,6 +6,6 @@ App({
   },
   globalData: {
     // H5 考生端地址（与 preview 页 iframe 加载的是同一个应用）
-    h5Url: 'http://10.110.40.160:6001/'
+    h5Url: 'http://10.110.40.160:6003/'
   }
 });

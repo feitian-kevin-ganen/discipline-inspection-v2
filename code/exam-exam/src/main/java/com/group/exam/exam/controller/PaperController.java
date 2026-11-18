@@ -60,6 +60,14 @@ public class PaperController {
         return Result.ok(paperService.detail(paperId));
     }
 
+    /** 试卷名称重复检查（编辑时 excludeId 传自身） */
+    @GetMapping("/name-check")
+    public Result<Map<String, Boolean>> nameCheck(@RequestParam String paperName,
+                                                  @RequestParam(required = false) Long excludeId) {
+        requireAdmin();
+        return Result.ok(Map.of("exists", paperService.isPaperNameTaken(paperName, excludeId)));
+    }
+
     /** PAPER-04 编辑试卷基础信息与分数设计 */
     @PutMapping("/{paperId}")
     public Result<Void> update(@PathVariable Long paperId, @RequestBody PaperUpdateReq req) {

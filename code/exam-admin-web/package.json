@@ -6,19 +6,16 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "build:target": "vite build --base=/mgmt/",
     "preview": "vite preview"
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.1",
-    "@vueup/vue-quill": "^1.5.5",
-    "@wangeditor/editor": "^5.1.23",
-    "@wangeditor/editor-for-vue": "^5.1.12",
+    "@wangeditor-next/editor": "^6.3.0",
+    "@wangeditor-next/editor-for-vue": "^6.3.0",
     "axios": "^1.7.7",
     "echarts": "^5.5.1",
     "element-plus": "^2.8.4",
     "pinia": "^2.2.2",
-    "quill": "^2.0.3",
     "vue": "^3.5.10",
     "vue-router": "^4.4.5"
   },

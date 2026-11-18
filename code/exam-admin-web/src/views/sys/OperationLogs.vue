@@ -31,7 +31,9 @@
         <el-table-column prop="targetDesc" label="对象" min-width="180" show-overflow-tooltip />
         <el-table-column prop="detail" label="详情" min-width="220" show-overflow-tooltip />
         <el-table-column prop="ip" label="IP" width="130" />
-        <el-table-column prop="operateTime" label="操作时间" width="170" />
+        <el-table-column label="操作时间" width="170">
+          <template #default="{ row }">{{ fmtTime(row.operateTime) }}</template>
+        </el-table-column>
       </el-table>
 
       <div class="pager">
@@ -52,6 +54,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { sysApi } from '../../api'
+import { fmtTime } from '../../utils/format'
 
 const MODULES = [
   { value: 'ORG', label: '组织' },
@@ -59,7 +62,7 @@ const MODULES = [
   { value: 'LIB', label: '资料' },
   { value: 'QUES', label: '题库' },
   { value: 'PAPER', label: '试卷' },
-  { value: 'EXAM', label: '考试' },
+  { value: 'EXAM', label: '测试' },
   { value: 'MARK', label: '阅卷' },
   { value: 'SYS', label: '系统' }
 ]

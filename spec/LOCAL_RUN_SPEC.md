@@ -24,7 +24,8 @@
 | Node.js | v22.22.1 | 仅用于构建 |
 | npm | 10.9.4 | 仅用于构建 |
 | Python | 3.12.3 | 用于网关与校验脚本 |
-| PostgreSQL | 16.15 | `127.0.0.1:5434`，库 `exam_db` |
+| PostgreSQL | 16.15 | `127.0.0.1:5434`，库 `exam_db`；**仅作迁移回滚源，应用不再连接** |
+| MySQL | 8.0.46 | `127.0.0.1:3306`，库 `exam_db`，PaaS 目录 `PaaS/MySQL8` |
 | Redis | 7.0.15 | `127.0.0.1:6379`，无密码 |
 | MinIO | RELEASE.2025-07-23 | `http://127.0.0.1:9000`，bucket `exam-files` |
 | ffmpeg | `/home/cloud/AIExamK3/middleware/ffmpeg` | 视频封面抽帧 |
@@ -37,9 +38,9 @@
 |--------|--------|------|
 | 后端端口 | `8088` | 不可随意变更，网关 `/api/` 反代指向它 |
 | 统一入口端口 | `6003` | 三端静态 + `/api` 反代，与目标机 6003 单入口口径一致 |
-| 数据库驱动 | `org.postgresql.Driver` | 本机使用 PostgreSQL |
-| 数据库 URL | `jdbc:postgresql://127.0.0.1:5434/exam_db?stringtype=unspecified` | 本地 PaaS PostgreSQL |
-| 数据库账号 | `postgres / postgres` | 与本地 PostgreSQL 实例一致 |
+| 数据库驱动 | `com.mysql.cj.jdbc.Driver` | 本机与目标机统一 MySQL |
+| 数据库 URL | `jdbc:mysql://127.0.0.1:3306/exam_db?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true` | 本地 PaaS MySQL 8 |
+| 数据库账号 | `exam_admin / Exam@Local2026` | 仅授权 `exam_db`，不使用 root |
 | Redis host | `127.0.0.1` | 本地 PaaS Redis |
 | Redis port | `6379` | 本地 PaaS Redis |
 | Redis password | （空） | 本地 Redis 无密码 |
@@ -63,7 +64,7 @@
 /home/cloud/AIExamK3/
 ├── app/exam-server.jar
 ├── config/application.yml
-├── web/{admin,user,h5}/
+├── web/{admin,user,h5,portal,sso}/
 ├── middleware/ffmpeg
 ├── scripts/{start_all.sh,stop_all.sh,local_gateway.py,verify_api.py,verify_pdf_pages.py}
 ├── logs/
@@ -84,7 +85,7 @@ bash scripts/stop_all.sh           # 只停本目录 run/*.pid 记录的进程
 
 `start_all.sh` 完成：
 
-1. 依赖探测：`127.0.0.1:5434`、`6379`、`9000`，缺失只告警不阻断。
+1. 依赖探测：`127.0.0.1:3306`、`6379`、`9000`，缺失只告警不阻断。
 2. 启动后端 jar（端口 8088）：
    `java -jar app/exam-server.jar --spring.config.additional-location=file:$APP_DIR/config/`
 3. 等待 `/v3/api-docs` 可用（最长 120 秒）。
@@ -94,11 +95,12 @@ bash scripts/stop_all.sh           # 只停本目录 run/*.pid 记录的进程
 
 | 前缀 | 去向 |
 |------|------|
+| `/portal/` | `web/portal`（本机模拟数字国联门户：手机号登录 → 应用中心） |
 | `/mgmt/` | `web/admin`（SPA 回退 index.html） |
 | `/learning-web/` | `web/user` |
 | `/learning-h5/` | `web/h5` |
 | `/api/` | 反代 `127.0.0.1:8088`，响应加 `Cache-Control: no-store` |
-| `/` | 302 到 `/learning-h5/` |
+| `/` | 302 到 `/portal/` |
 | `/guolian-jijian/login` | `web/sso/index.html`（不存在时返回 404 说明页） |
 
 ## 4. 验证
@@ -108,7 +110,10 @@ bash scripts/stop_all.sh           # 只停本目录 run/*.pid 记录的进程
 python3 scripts/verify_api.py --base http://127.0.0.1:6003/api/v1
 
 # 三端入口
-for p in /mgmt/ /learning-web/ /learning-h5/; do curl -s -o /dev/null -w "$p %{http_code}\n" http://127.0.0.1:6003$p; done
+for p in /portal/ /mgmt/ /learning-web/ /learning-h5/ /guolian-jijian/login; do curl -s -o /dev/null -w "$p %{http_code}\n" http://127.0.0.1:6003$p; done
+
+# 模拟门户登录（admin=13822211100，员工=13585020876；密码不校验）
+curl -s -X POST http://127.0.0.1:6003/api/v1/portal/login -H 'Content-Type: application/json' -d '{"phone":"13822211100","password":"x"}'
 
 # 可选：PDF 页图预览（需 playwright；默认走 6003 的两个用户端前缀）
 python3 scripts/verify_pdf_pages.py
@@ -117,11 +122,15 @@ python3 scripts/verify_pdf_pages.py
 ## 5. 注意事项
 
 - 本机**不生成 `local-deploy` 归档**，启动所需文件直接位于 `/home/cloud/AIExamK3`。
-- 依赖本地 PaaS：PostgreSQL `exam_db`、Redis `6379`、MinIO `9000` 必须可用。
+- 依赖本地 PaaS：MySQL `3306`（库 `exam_db`）、Redis `6379`、MinIO `9000` 必须可用；PostgreSQL `5434` 仅作迁移回滚源。
 - 若本机 IP 变化，须同步修改 `config/application.yml` 中的 `minio.public-endpoint`。
-- 本机配置与目标机配置**严禁混用**：目标机是 PolarDB-X/MySQL + OSS + InforSuiteLB，本机是
-  PostgreSQL + 本地 MinIO + `local_gateway.py`。
+- 本机配置与目标机配置**严禁混用**：目标机是 PolarDB MySQL + OSS + InforSuiteLB，本机是
+  MySQL 8 + 本地 MinIO + `local_gateway.py`。
 - 端口模型：后端 `8088` 只被网关反代，对外只需开放 `6003`；不要沿用历史上
   `6009/6002/6001` 分端口静态服务的做法，三端 dist 已按 `/mgmt/`、`/learning-web/`、
   `/learning-h5/` 前缀构建，分端口静态服务会导致资源 404。
 - 停服务只按 `run/*.pid` 停止，不得 `pkill java` 或按端口杀进程（会波及其他项目）。
+- 本机模拟国联单点登录：`/portal/` 手机号登录（密码不校验）→ 应用中心 → `/guolian-jijian/login?ticket=...`；
+  ticket 存 Redis `portal:ticket:{ticket}`（TTL 5 分钟、一次性）。测试账号：
+  `13822211100`（empId 10536，`HQ_ADMIN` → 管理端）、`13585020876`（empId 30，`EXAMINEE` → 用户端）。
+  对应 SQL：`code/exam-server/src/main/resources/db/data-local-portal-accounts-mysql.sql`。

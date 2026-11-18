@@ -1,13 +1,13 @@
 <template>
   <div>
-    <van-nav-bar title="在线考试" />
+    <van-nav-bar title="在线测试" />
     <van-tabs v-model:active="active" sticky @change="onTabChange">
       <van-tab title="待考" name="TODO" />
       <van-tab title="历史" name="HISTORY" />
     </van-tabs>
     <van-pull-refresh v-model="refreshing" @refresh="onRefresh">
       <van-list v-model:loading="loading" :finished="finished" finished-text="没有更多了" @load="onLoad">
-        <van-empty v-if="!loading && list.length === 0" :description="active === 'TODO' ? '暂无待考考试' : '暂无历史考试'" />
+        <van-empty v-if="!loading && list.length === 0" :description="active === 'TODO' ? '暂无待考测试' : '暂无历史测试'" />
         <van-cell-group v-for="exam in list" :key="exam.examId" inset class="exam-card">
           <div class="exam-head">
             <span class="exam-name">{{ exam.examName }}</span>
@@ -19,7 +19,7 @@
             <van-tag v-else type="warning">{{ sheetStatusName[exam.mySheetStatus] || '待发布' }}</van-tag>
           </div>
           <div class="text-muted exam-meta">
-            <div>考试时间：{{ exam.startTime }} ~ {{ exam.endTime }}</div>
+            <div>测试时间：{{ exam.startTime }} ~ {{ exam.endTime }}</div>
             <div>时长：{{ exam.durationMin }} 分钟</div>
             <div v-if="active === 'TODO' && !exam.canEnter && exam.cannotEnterReason" class="exam-reason">
               {{ exam.cannotEnterReason }}
@@ -37,7 +37,7 @@
                 继续答题
               </van-button>
               <van-button v-else type="primary" size="small" block :disabled="!exam.canEnter" @click="goNotice(exam)">
-                进入考试
+                进入测试
               </van-button>
             </template>
             <van-button
@@ -121,7 +121,7 @@ function resumeExam(exam) {
     router.push(`/exam/answer/${exam.examId}`)
   } else {
     // 本地无会话（换终端）：重新走进入流程，服务端按 RESUME 恢复
-    showToast('正在恢复考试会话...')
+    showToast('正在恢复测试会话...')
     goNotice(exam)
   }
 }

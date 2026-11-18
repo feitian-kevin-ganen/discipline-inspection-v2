@@ -73,7 +73,20 @@
               <el-table-column label="有效时长" width="130" align="right">
                 <template #default="{ row }">{{ formatSec(row.effectiveSec) }}</template>
               </el-table-column>
-              <el-table-column prop="completedCount" label="已完成资料" width="110" align="right" />
+              <el-table-column label="已完成资料" width="110" align="right">
+                <template #default="{ row }">
+                  <el-tooltip v-if="row.completedCount > 0" placement="left" :show-after="150">
+                    <template #content>
+                      <div v-if="!matTips['u' + row.userId]" class="mat-tip-loading">加载中…</div>
+                      <div v-else class="mat-tip-list">
+                        <div v-for="(t, i) in matTips['u' + row.userId]" :key="i">{{ i + 1 }}. {{ t }}</div>
+                      </div>
+                    </template>
+                    <span class="mat-count" @mouseenter="ensureMatTip('u' + row.userId, { userId: row.userId })">{{ row.completedCount }}</span>
+                  </el-tooltip>
+                  <span v-else>{{ row.completedCount }}</span>
+                </template>
+              </el-table-column>
               <el-table-column prop="inProgressCount" label="学习中资料" width="110" align="right" />
               <el-table-column label="任务完成率" width="110" align="right">
                 <template #default="{ row }">{{ pct(row.taskDoneRate) }}</template>
@@ -119,7 +132,20 @@
             <el-table-column label="有效学习时长" width="150" align="right">
               <template #default="{ row }">{{ formatSec(row.effectiveSec) }}</template>
             </el-table-column>
-            <el-table-column prop="completedCount" label="完成资料数" width="110" align="right" />
+            <el-table-column label="完成资料数" width="110" align="right">
+              <template #default="{ row }">
+                <el-tooltip v-if="row.completedCount > 0" placement="left" :show-after="150">
+                  <template #content>
+                    <div v-if="!matTips[rankTipKey(row)]" class="mat-tip-loading">加载中…</div>
+                    <div v-else class="mat-tip-list">
+                      <div v-for="(t, i) in matTips[rankTipKey(row)]" :key="i">{{ i + 1 }}. {{ t }}</div>
+                    </div>
+                  </template>
+                  <span class="mat-count" @mouseenter="ensureMatTip(rankTipKey(row), rankTipParams(row))">{{ row.completedCount }}</span>
+                </el-tooltip>
+                <span v-else>{{ row.completedCount }}</span>
+              </template>
+            </el-table-column>
           </el-table>
         </el-tab-pane>
       </el-tabs>
@@ -290,6 +316,34 @@ function onTabChange(name) {
   }
 }
 
+// ---------------- 完成资料数悬停提示 ----------------
+const matTips = ref({}) // key → 资料名称数组（未加载为 undefined）
+const matTipPending = new Set()
+
+function rankTipKey(row) {
+  return rankQuery.value.rankType === 'ORG' ? 'o' + row.orgId : 'u' + row.userId
+}
+
+function rankTipParams(row) {
+  return rankQuery.value.rankType === 'ORG' ? { orgId: row.orgId } : { userId: row.userId }
+}
+
+async function ensureMatTip(key, params) {
+  if (matTips.value[key] !== undefined || matTipPending.has(key)) return
+  matTipPending.add(key)
+  try {
+    const list = await lstatApi.completedMaterials({ ...params, ...timeParams.value })
+    matTips.value = { ...matTips.value, [key]: list && list.length ? list : ['（无记录）'] }
+  } catch (e) {
+    // 拦截器已统一报错；不缓存，下次悬停自动重试
+  } finally {
+    matTipPending.delete(key)
+  }
+}
+
+// 时间范围变化后清空提示缓存
+watch(timeParams, () => { matTips.value = {} })
+
 // ---------------- 导出 ----------------
 async function handleExport(exportType) {
   if (!timeParamsValid.value) {
@@ -318,3 +372,24 @@ onBeforeUnmount(() => {
   }
 })
 </script>
+
+<style scoped>
+.mat-count {
+  cursor: pointer;
+  color: #409eff;
+  border-bottom: 1px dashed #409eff;
+}
+</style>
+
+<!-- 提示框内容渲染在 body（teleport），不能用 scoped -->
+<style>
+.mat-tip-loading {
+  color: #bbb;
+}
+.mat-tip-list {
+  max-width: 360px;
+  max-height: 300px;
+  overflow-y: auto;
+  line-height: 1.7;
+}
+</style>

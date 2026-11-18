@@ -34,6 +34,9 @@ public class ItemPageVO implements Serializable {
     /** DRAFT/PENDING_AUDIT/ENABLED/DISABLED */
     private String status;
 
+    /** AI=AI生成，MANUAL=人工录入 */
+    private String genType;
+
     private Integer useCount;
 
     /** 历次考试正确率% */
@@ -112,6 +115,14 @@ public class ItemPageVO implements Serializable {
 
     public void setStatus(String status) {
         this.status = status;
+    }
+
+    public String getGenType() {
+        return this.genType;
+    }
+
+    public void setGenType(String genType) {
+        this.genType = genType;
     }
 
     public Integer getUseCount() {

@@ -104,6 +104,7 @@ public class PaperService extends ServiceImpl<PaperMapper, Paper> {
         if (!StringUtils.hasText(req.getPaperName())) {
             throw new BizException(ErrorCode.PARAM_ERROR, "试卷名称不能为空");
         }
+        requirePaperNameUnique(req.getPaperName().trim(), null);
         int paperType = parsePaperType(req.getPaperType());
         BigDecimal totalScore = req.getTotalScore() == null ? new BigDecimal("100") : req.getTotalScore();
         BigDecimal passScore = req.getPassScore() == null ? new BigDecimal("60") : req.getPassScore();
@@ -182,6 +183,10 @@ public class PaperService extends ServiceImpl<PaperMapper, Paper> {
                 q.put("seq", pq.getSortNo());
                 q.put("score", pq.getScore());
                 q.put("quesType", QuesTypeEnum.toApi(pq.getQuesType()));
+                // 快照中的难度为 DB 编码（1-3），统一转 API 编码（EASY/MEDIUM/HARD）
+                if (q.get("difficulty") instanceof Number diffCode) {
+                    q.put("difficulty", DifficultyEnum.toApi(diffCode.intValue()));
+                }
                 questions.add(q);
             }
             m.put("questions", questions);
@@ -192,7 +197,7 @@ public class PaperService extends ServiceImpl<PaperMapper, Paper> {
     // ---------------------------------------------------------------- PAPER-04 编辑基础信息与策略
 
     /**
-     * 编辑试卷：未封存（SEALED）且未被考试场次引用时可修改基础信息、抽题策略与分值设计。
+     * 编辑试卷：未封存（SEALED）且未被测试场次引用时可修改基础信息、抽题策略与分值设计。
      * 随机卷修改 randomStrategy/totalScore 时按创建口径重新校验（题量充足 + 策略分值合计=卷面总分）。
      */
     @Transactional(rollbackFor = Exception.class)
@@ -201,7 +206,11 @@ public class PaperService extends ServiceImpl<PaperMapper, Paper> {
         requireNotSealed(paper);
         requireNotReferenced(paper);
         if (StringUtils.hasText(req.getPaperName())) {
-            paper.setPaperName(req.getPaperName().trim());
+            String newName = req.getPaperName().trim();
+            if (!newName.equals(paper.getPaperName())) {
+                requirePaperNameUnique(newName, paperId);
+            }
+            paper.setPaperName(newName);
         }
         if (req.getTotalScore() != null) {
             paper.setTotalScore(req.getTotalScore());
@@ -260,22 +269,41 @@ public class PaperService extends ServiceImpl<PaperMapper, Paper> {
         }
     }
 
-    /** 被考试场次引用（含进行中/已结束）的试卷不可编辑，须先封存口径保护已产生的答卷快照 */
+    /** 被测试场次引用（含进行中/已结束）的试卷不可编辑，须先封存口径保护已产生的答卷快照 */
     private void requireNotReferenced(Paper paper) {
         Long refs = examSessionMapper.selectCount(new QueryWrapper<ExamSession>().eq("paper_id", paper.getId()));
         if (refs != null && refs > 0) {
-            throw new BizException(ErrorCode.PAPER_SEALED, "试卷已被考试引用，不可编辑");
+            throw new BizException(ErrorCode.PAPER_SEALED, "试卷已被测试引用，不可编辑");
         }
     }
 
     // ---------------------------------------------------------------- PAPER-05 删除
 
     @Transactional(rollbackFor = Exception.class)
+    /** 试卷名称唯一性校验：未删除试卷间不重名；excludeId 用于编辑时排除自身 */
+    private void requirePaperNameUnique(String paperName, Long excludeId) {
+        if (isPaperNameTaken(paperName, excludeId)) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "试卷名称已存在，请更换名称");
+        }
+    }
+
+    /** 试卷名称是否已被占用（未删除试卷间，excludeId 排除自身） */
+    public boolean isPaperNameTaken(String paperName, Long excludeId) {
+        if (!StringUtils.hasText(paperName)) {
+            return false;
+        }
+        return lambdaQuery()
+                .eq(Paper::getPaperName, paperName.trim())
+                .ne(excludeId != null, Paper::getId, excludeId)
+                .select(Paper::getId)
+                .list().stream().findFirst().isPresent();
+    }
+
     public void delete(Long paperId) {
         Paper paper = requirePaper(paperId);
         Long refs = examSessionMapper.selectCount(new QueryWrapper<ExamSession>().eq("paper_id", paperId));
         if (refs != null && refs > 0) {
-            throw new BizException(ErrorCode.PAPER_SEALED, "试卷已被考试引用，不可删除");
+            throw new BizException(ErrorCode.PAPER_SEALED, "试卷已被测试引用，不可删除");
         }
         removeById(paperId);
         paperQuestionMapper.physicalDeleteByPaperId(paperId);
@@ -399,9 +427,11 @@ public class PaperService extends ServiceImpl<PaperMapper, Paper> {
     @Transactional(rollbackFor = Exception.class)
     public Long copy(Long paperId, PaperCopyReq req) {
         Paper source = requirePaper(paperId);
+        String copyName = StringUtils.hasText(req.getPaperName())
+                ? req.getPaperName().trim() : source.getPaperName() + " 副本";
+        requirePaperNameUnique(copyName, null);
         Paper copy = new Paper();
-        copy.setPaperName(StringUtils.hasText(req.getPaperName())
-                ? req.getPaperName().trim() : source.getPaperName() + " 副本");
+        copy.setPaperName(copyName);
         copy.setPaperType(source.getPaperType());
         copy.setTotalScore(source.getTotalScore());
         copy.setPassScore(source.getPassScore());

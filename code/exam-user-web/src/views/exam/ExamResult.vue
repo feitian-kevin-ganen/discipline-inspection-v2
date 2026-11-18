@@ -19,7 +19,7 @@
           <div class="btns">
             <el-button v-if="scoreVisible" type="primary" @click="$router.push(`/score/${examId}`)">查看成绩明细</el-button>
             <el-button v-else type="primary" plain :loading="checking" @click="checkScore">刷新成绩状态</el-button>
-            <el-button @click="$router.replace('/exam')">返回考试中心</el-button>
+            <el-button @click="$router.replace('/exam')">返回测试中心</el-button>
             <el-button @click="$router.replace('/home')">回到首页</el-button>
           </div>
         </template>

@@ -1,9 +1,9 @@
 <template>
   <div class="page-container">
     <div class="page-card welcome">
-      <h2>欢迎使用纪检监察人员在线考试系统</h2>
+      <h2>欢迎使用“纪检监察业务”学习平台</h2>
       <p>{{ greeting }}，{{ auth.user?.name }}（{{ auth.user?.orgName }}）</p>
-      <p class="muted">请从左侧菜单进入各功能模块：组织管理、学习管理、题库管理、试卷管理、考试管理、阅卷管理、考试统计、系统管理。</p>
+      <p class="muted">请从左侧菜单进入各功能模块：组织管理、学习管理、题库管理、试卷管理、测试管理、阅卷管理、测试统计、系统管理。</p>
     </div>
   </div>
 </template>

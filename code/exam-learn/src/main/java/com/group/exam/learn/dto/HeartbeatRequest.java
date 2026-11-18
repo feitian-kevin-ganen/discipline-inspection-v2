@@ -22,6 +22,9 @@ public class HeartbeatRequest {
     /** 视频当前播放位置（秒） */
     private Integer positionSec;
 
+    /** 视频实际时长（秒），由客户端播放器读取上报；优先于资料标称时长作为进度分母 */
+    private Integer durationSec;
+
     /** 文档当前页码 */
     private Integer pageNo;
 

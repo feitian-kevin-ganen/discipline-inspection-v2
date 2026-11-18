@@ -43,6 +43,10 @@
             <artifactId>exam-practice</artifactId>
         </dependency>
         <dependency>
+            <groupId>com.group.exam</groupId>
+            <artifactId>exam-integration</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
         </dependency>

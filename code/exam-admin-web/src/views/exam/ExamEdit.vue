@@ -1,17 +1,17 @@
 <template>
   <div class="page-container">
     <div class="page-card">
-      <h3 style="margin-top: 0">{{ isEdit ? '编辑考试场次' : '创建考试场次' }}</h3>
+      <h3 style="margin-top: 0">{{ isEdit ? '编辑测试场次' : '创建测试场次' }}</h3>
       <el-form ref="formRef" :model="form" :rules="rules" label-width="120px" style="max-width: 720px" v-loading="loading">
-        <el-form-item label="考试名称" prop="examName">
-          <el-input v-model="form.examName" placeholder="请输入考试名称" maxlength="100" show-word-limit />
+        <el-form-item label="测试名称" prop="examName">
+          <el-input v-model="form.examName" placeholder="请输入测试名称" maxlength="100" show-word-limit />
         </el-form-item>
         <el-form-item label="关联试卷" prop="paperId">
           <el-select v-model="form.paperId" placeholder="请选择试卷" filterable :disabled="isEdit" style="width: 100%">
             <el-option v-for="p in papers" :key="p.paperId" :label="paperLabel(p)" :value="p.paperId" />
           </el-select>
         </el-form-item>
-        <el-form-item label="考试时间窗口" prop="timeRange">
+        <el-form-item label="测试时间窗口" prop="timeRange">
           <el-date-picker
             v-model="form.timeRange"
             type="datetimerange"
@@ -22,14 +22,14 @@
             style="width: 100%"
           />
         </el-form-item>
-        <el-form-item label="考试时长" prop="durationMin">
+        <el-form-item label="测试时长" prop="durationMin">
           <el-input-number v-model="form.durationMin" :min="1" :max="1440" />
           <span class="tip">分钟，从考生进入起算，且不超过窗口结束时间</span>
         </el-form-item>
       </el-form>
 
       <el-card shadow="never" style="max-width: 720px; margin-bottom: 16px">
-        <template #header>考试规则</template>
+        <template #header>测试规则</template>
         <el-form :model="form" label-width="160px">
           <el-form-item label="允许迟到进入时限">
             <el-input-number v-model="form.lateEnterMin" :min="0" :max="1440" />
@@ -52,8 +52,8 @@
           <el-form-item label="选项顺序乱序">
             <el-switch v-model="form.shuffleOption" />
           </el-form-item>
-          <el-form-item label="考试须知">
-            <el-input v-model="form.notice" type="textarea" :rows="4" placeholder="向考生展示的考试须知" />
+          <el-form-item label="测试须知">
+            <el-input v-model="form.notice" type="textarea" :rows="4" placeholder="向考生展示的测试须知" />
           </el-form-item>
         </el-form>
       </el-card>
@@ -98,10 +98,10 @@ const form = reactive({
 })
 
 const rules = {
-  examName: [{ required: true, message: '请输入考试名称', trigger: 'blur' }],
+  examName: [{ required: true, message: '请输入测试名称', trigger: 'blur' }],
   paperId: [{ required: true, message: '请选择试卷', trigger: 'change' }],
-  timeRange: [{ required: true, type: 'array', len: 2, message: '请选择考试时间窗口', trigger: 'change' }],
-  durationMin: [{ required: true, message: '请设置考试时长', trigger: 'blur' }]
+  timeRange: [{ required: true, type: 'array', len: 2, message: '请选择测试时间窗口', trigger: 'change' }],
+  durationMin: [{ required: true, message: '请设置测试时长', trigger: 'blur' }]
 }
 
 function paperLabel(p) {

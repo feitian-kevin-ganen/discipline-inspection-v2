@@ -61,12 +61,13 @@ public class QuesItemController {
                                                @RequestParam(required = false) String status,
                                                @RequestParam(required = false) String keyword,
                                                @RequestParam(required = false) String tag,
+                                               @RequestParam(required = false) String genType,
                                                @RequestParam(defaultValue = "1") long pageNum,
                                                @RequestParam(defaultValue = "20") long pageSize) {
         requireAdmin();
         pageNum = Math.max(pageNum, 1);
         pageSize = Math.min(Math.max(pageSize, 1), 200);
-        return Result.ok(quesItemService.pageItems(bankId, quesType, difficulty, status, keyword, tag, pageNum, pageSize));
+        return Result.ok(quesItemService.pageItems(bankId, quesType, difficulty, status, keyword, tag, genType, pageNum, pageSize));
     }
 
     /** QUES-06 新增题目 */

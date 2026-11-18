@@ -33,6 +33,7 @@ export const libApi = {
   page: (params) => request.get('/admin/lib/materials', { params }),
   create: (formData) => request.post('/admin/lib/materials', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
   detail: (materialId) => request.get(`/admin/lib/materials/${materialId}`),
+  previewFile: (materialId) => request.get(`/admin/lib/materials/${materialId}/preview-file`),
   update: (materialId, formData) => request.put(`/admin/lib/materials/${materialId}`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
   remove: (materialId) => request.delete(`/admin/lib/materials/${materialId}`),
   audit: (materialId, data) => request.post(`/admin/lib/materials/${materialId}/audit`, data),
@@ -52,6 +53,7 @@ export const lstatApi = {
   orgSummary: (params) => request.get('/admin/lstat/org-summary', { params }),
   orgDetail: (orgId, params) => request.get(`/admin/lstat/org-summary/${orgId}`, { params }),
   ranking: (params) => request.get('/admin/lstat/ranking', { params }),
+  completedMaterials: (params) => request.get('/admin/lstat/completed-materials', { params }),
   exportExcel: (params) => request.get('/admin/lstat/export', { params })
 }
 
@@ -65,15 +67,28 @@ export const quesApi = {
   create: (data) => request.post('/admin/ques/items', data),
   detail: (itemId) => request.get(`/admin/ques/items/${itemId}`),
   update: (itemId, data) => request.put(`/admin/ques/items/${itemId}`, data),
-  remove: (itemId, hard) => request.delete(`/admin/ques/items/${itemId}`, { params: { hard } }),
+  remove: (itemId, hard, config) => request.delete(`/admin/ques/items/${itemId}`, { params: { hard }, ...(config || {}) }),
   importItems: (formData) => request.post('/admin/ques/items/import', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
   dupCheck: (data) => request.post('/admin/ques/items/dup-check', data),
   audit: (itemId, data) => request.post(`/admin/ques/items/${itemId}/audit`, data)
 }
 
+// AI 辅助生题
+export const aiGenApi = {
+  materials: (categoryId) => request.get('/admin/ques/ai-gen/materials', { params: { categoryId } }),
+  createTasks: (data) => request.post('/admin/ques/ai-gen/tasks', data),
+  tasks: () => request.get('/admin/ques/ai-gen/tasks'),
+  removeTask: (taskId) => request.delete(`/admin/ques/ai-gen/tasks/${taskId}`),
+  questions: (taskId) => request.get(`/admin/ques/ai-gen/tasks/${taskId}/questions`),
+  updateQuestion: (questionId, data) => request.put(`/admin/ques/ai-gen/questions/${questionId}`, data),
+  adopt: (questionId) => request.post(`/admin/ques/ai-gen/questions/${questionId}/adopt`),
+  discard: (questionId) => request.post(`/admin/ques/ai-gen/questions/${questionId}/discard`)
+}
+
 // PAPER 试卷
 export const paperApi = {
   page: (params) => request.get('/admin/papers', { params }),
+  nameCheck: (params) => request.get('/admin/papers/name-check', { params }),
   create: (data) => request.post('/admin/papers', data),
   detail: (paperId) => request.get(`/admin/papers/${paperId}`),
   update: (paperId, data) => request.put(`/admin/papers/${paperId}`, data),
@@ -85,7 +100,7 @@ export const paperApi = {
   setGradeRules: (paperId, gradeRules) => request.put(`/admin/papers/${paperId}/grade-rules`, { gradeRules })
 }
 
-// EXAM 考试场次
+// EXAM 测试场次
 export const examApi = {
   page: (params) => request.get('/admin/exams', { params }),
   create: (data) => request.post('/admin/exams', data),
@@ -114,7 +129,7 @@ export const markApi = {
   publish: (examId) => request.post(`/admin/mark/exams/${examId}/publish`, { confirm: true })
 }
 
-// STAT 考试统计
+// STAT 测试统计
 export const statApi = {
   overview: (examId) => request.get(`/admin/stat/exams/${examId}/overview`),
   orgSummary: (examId, params) => request.get(`/admin/stat/exams/${examId}/org-summary`, { params }),

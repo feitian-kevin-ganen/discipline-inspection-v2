@@ -8,7 +8,7 @@ const request = axios.create({
 })
 
 function getToken() {
-  return localStorage.getItem('accessToken') || ''
+  return localStorage.getItem('mgmt_accessToken') || ''
 }
 
 let refreshing = null
@@ -26,18 +26,21 @@ async function retryWithLatestToken(config) {
 }
 
 async function refreshToken() {
-  const rt = localStorage.getItem('refreshToken')
+  const rt = localStorage.getItem('mgmt_refreshToken')
   if (!rt) throw new Error('no refresh token')
   const res = await axios.post('/api/v1/auth/refresh', { refreshToken: rt })
   if (res.data && res.data.code === 0) {
-    localStorage.setItem('accessToken', res.data.data.accessToken)
-    localStorage.setItem('refreshToken', res.data.data.refreshToken)
+    localStorage.setItem('mgmt_accessToken', res.data.data.accessToken)
+    localStorage.setItem('mgmt_refreshToken', res.data.data.refreshToken)
     return res.data.data.accessToken
   }
   throw new Error((res.data && res.data.message) || '刷新失败')
 }
 
 function toLogin() {
+  localStorage.removeItem('mgmt_accessToken')
+  localStorage.removeItem('mgmt_refreshToken')
+  localStorage.removeItem('mgmt_userInfo')
   localStorage.removeItem('accessToken')
   localStorage.removeItem('refreshToken')
   localStorage.removeItem('userInfo')
@@ -66,8 +69,14 @@ request.interceptors.response.use(
         return body.data
       }
       // 登录接口的业务错误（如凭证错误也返回 10002）单独处理，不走登录失效逻辑
-      if (response.config.url && response.config.url.includes('/auth/login')) {
-        ElMessage.error(body.code === 10002 ? '账号或密码错误' : (body.message || '登录失败'))
+      // 登录类接口的业务错误（凭证错误也返回 10002）单独处理，不走登录失效逻辑，避免刷新/跳转死循环
+      const reqUrl = response.config.url || ''
+      if (reqUrl.includes('/auth/login') || reqUrl.includes('/integration/ticket/login')) {
+        const isTicket = reqUrl.includes('/integration/')
+        const msg = body.code === 10002
+          ? (isTicket ? '单点登录校验失败，请使用工号密码登录' : '账号或密码错误')
+          : (body.message || '登录失败')
+        ElMessage.error(msg)
         return Promise.reject(new Error(body.message || '登录失败'))
       }
       if (body.code === 10002 || body.code === 10010) {
@@ -94,6 +103,7 @@ request.interceptors.response.use(
       }
       if (!response.config.__silent) ElMessage.error(body.message || '请求失败')
       const bizErr = new Error(body.message || '请求失败')
+      bizErr.code = body.code
       bizErr.data = body.data
       return Promise.reject(bizErr)
     }

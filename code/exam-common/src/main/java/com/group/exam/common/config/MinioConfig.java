@@ -38,9 +38,13 @@ public class MinioConfig {
 
         @Bean
         public MinioClient minioClient() {
+            // 显式指定 region：minio-java 生成预签名 URL 时会隐式向 endpoint 发起
+            // GetBucketRegion 查询（未配置 region 时），public-endpoint 不可达会导致
+            // 预签名生成挂起数十秒直至超时。显式 region 后签名为纯本地计算，零网络依赖。
             return MinioClient.builder()
                     .endpoint(endpoint)
                     .credentials(accessKey, secretKey)
+                    .region("us-east-1")
                     .build();
         }
     }
@@ -191,6 +195,7 @@ public class MinioConfig {
                         presignClient = MinioClient.builder()
                                 .endpoint(pub)
                                 .credentials(properties.getAccessKey(), properties.getSecretKey())
+                                .region("us-east-1")
                                 .build();
                     }
                     c = presignClient;

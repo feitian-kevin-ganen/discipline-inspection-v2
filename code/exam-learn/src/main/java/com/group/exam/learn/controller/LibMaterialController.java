@@ -130,4 +130,28 @@ public class LibMaterialController {
         materialService.updateScope(materialId, request);
         return Result.ok();
     }
+
+    /** 管理端预览：文件预签名地址（视频含 webm 备用流） */
+    @GetMapping("/{materialId}/preview-file")
+    public Result<Map<String, Object>> previewFile(@PathVariable Long materialId) {
+        return Result.ok(materialService.previewFile(materialId));
+    }
+
+    /** 管理端预览：DOCX 转 HTML */
+    @GetMapping("/{materialId}/doc-html")
+    public void docHtml(@PathVariable Long materialId, jakarta.servlet.http.HttpServletResponse response)
+            throws java.io.IOException {
+        String html = materialService.previewDocHtml(materialId);
+        response.setContentType("text/html;charset=UTF-8");
+        response.setHeader("Cache-Control", "private, max-age=3600");
+        response.getOutputStream().write(html.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        response.getOutputStream().flush();
+    }
+
+    /** 管理端预览：PDF 页图（响应头 X-Total-Pages 为总页数） */
+    @GetMapping("/{materialId}/pages/{pageNo}")
+    public void pageImage(@PathVariable Long materialId, @PathVariable int pageNo,
+                          jakarta.servlet.http.HttpServletResponse response) throws java.io.IOException {
+        materialService.previewPageImage(materialId, pageNo, response);
+    }
 }

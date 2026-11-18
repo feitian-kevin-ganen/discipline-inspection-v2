@@ -1,0 +1,63 @@
+# 运行时数据
+data/
+logs/
+run/
+*.log
+
+# 大文件/压缩包/备份
+*.tar.gz
+*.zip
+*.jar
+*.bak*
+*.bak
+
+# 中间件与二进制
+middleware/
+app/
+deploy/
+tools/
+venv-*/
+
+# 业务数据（docx/pdf/xlsx 等）
+biz-data/
+
+# 文档中的二进制文件
+docs/**/*.docx
+docs/**/*.doc
+docs/**/*.pdf
+docs/**/*.xlsx
+docs/**/*.xls
+docs/**/*.pptx
+docs/**/*.ppt
+
+# Python 缓存
+__pycache__/
+*.pyc
+*.pyo
+
+# 前端构建产物与依赖
+code-src/**/node_modules/
+code-src/**/dist/
+code-src/**/target/
+
+# IDE 与编辑器
+.idea/
+.vscode/
+*.iml
+
+# 其他
+pxd_tryout.log
+web/
+
+# 部署产物与数据库备份
+backup/
+increment-*/
+migration-*
+*.sha256
+
+# 集成参考文档中的二进制与解包临时目录
+integration/**/*.docx
+integration/**/*.zip
+integration/**/.docx-extract/
+integration/**/.sdk-inspect/
+integration/2.开发依赖及说明-*/

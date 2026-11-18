@@ -70,6 +70,9 @@ public class QuesItem implements Serializable {
     /** 来源章节(V1.1) */
     private String sourceChapter;
 
+    /** 题目来源：AI=AI生成（采纳入库），MANUAL=人工录入/导入 */
+    private String genType;
+
     /** 0草稿 1待审 2启用 3停用 */
     private Integer status;
 
@@ -208,6 +211,14 @@ public class QuesItem implements Serializable {
 
     public void setSourceChapter(String sourceChapter) {
         this.sourceChapter = sourceChapter;
+    }
+
+    public String getGenType() {
+        return this.genType;
+    }
+
+    public void setGenType(String genType) {
+        this.genType = genType;
     }
 
     public Integer getStatus() {

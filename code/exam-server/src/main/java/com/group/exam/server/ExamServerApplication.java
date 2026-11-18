@@ -13,7 +13,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
         "com.group.exam.question.mapper",
         "com.group.exam.exam.mapper",
         "com.group.exam.stat.mapper",
-        "com.group.exam.practice.mapper"
+        "com.group.exam.practice.mapper",
+        "com.group.exam.server.aigen.mapper"
 })
 public class ExamServerApplication {
 

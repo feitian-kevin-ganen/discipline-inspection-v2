@@ -40,7 +40,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
- * 考生端在线考试（TAKE-01~09）与交卷/强制收卷
+ * 考生端在线测试（TAKE-01~09）与交卷/强制收卷
  */
 @Service
 public class SheetService extends ServiceImpl<AnswerSheetMapper, AnswerSheet> {
@@ -141,7 +141,7 @@ public class SheetService extends ServiceImpl<AnswerSheetMapper, AnswerSheet> {
             return "未到开考时间";
         }
         if (now.isAfter(s.getEndTime())) {
-            return "已过考试截止时间";
+            return "已过测试截止时间";
         }
         if (sheet == null && now.isAfter(lateDeadline(s))) {
             return "已超过允许迟到进入时限";
@@ -149,14 +149,14 @@ public class SheetService extends ServiceImpl<AnswerSheetMapper, AnswerSheet> {
         return null;
     }
 
-    // ---------------------------------------------------------------- TAKE-02 进入考试
+    // ---------------------------------------------------------------- TAKE-02 进入测试
 
     @Transactional(rollbackFor = Exception.class)
     public Map<String, Object> enter(Long examId, EnterExamReq req) {
         Long userId = SecurityUtils.getUserId();
         ExamSession session = examSessionMapper.selectById(examId);
         if (session == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "考试场次不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "测试场次不存在");
         }
         LocalDateTime now = LocalDateTime.now();
         if (session.getSessionStatus() == SessionStatusEnum.CANCELED.getCode()) {
@@ -429,7 +429,7 @@ public class SheetService extends ServiceImpl<AnswerSheetMapper, AnswerSheet> {
         if (req != null && "LEAVE".equalsIgnoreCase(req.getEventType())) {
             sheet.setSwitchCount((sheet.getSwitchCount() == null ? 0 : sheet.getSwitchCount()) + 1);
             if (sheet.getSwitchCount() > limit) {
-                // 超限：自动强制交卷 + 考试异常日志
+                // 超限：自动强制交卷 + 测试异常日志
                 submitInternal(sheet, 4);
                 sysLogService.log(3, "EXAM", "SWITCH_EXCEED",
                         "考生[" + sheet.getUserName() + "(" + sheet.getJobNo() + ")] 场次[" + sheet.getSessionId()
@@ -462,7 +462,7 @@ public class SheetService extends ServiceImpl<AnswerSheetMapper, AnswerSheet> {
             submitType = 2;
         } else if (session != null) {
             if (session.getAllowEarlySubmit() != null && session.getAllowEarlySubmit() == 0) {
-                throw new BizException(ErrorCode.SESSION_STATUS_INVALID, "本场考试不允许提前交卷");
+                throw new BizException(ErrorCode.SESSION_STATUS_INVALID, "本场测试不允许提前交卷");
             }
             int afterMin = session.getEarlySubmitAfterMin() == null ? 0 : session.getEarlySubmitAfterMin();
             if (afterMin > 0 && sheet.getStartTime() != null
@@ -510,7 +510,7 @@ public class SheetService extends ServiceImpl<AnswerSheetMapper, AnswerSheet> {
         gradingService.gradeSheet(sheet.getId());
     }
 
-    /** 强制收卷（EXAM-13/END 流转）：在考答卷按 submit_type=3 收卷并写考试异常日志 */
+    /** 强制收卷（EXAM-13/END 流转）：在考答卷按 submit_type=3 收卷并写测试异常日志 */
     @Transactional(rollbackFor = Exception.class)
     public int forceSubmitSheets(Long examId, List<Long> userIds, String reason) {
         QueryWrapper<AnswerSheet> qw = new QueryWrapper<>();
@@ -588,7 +588,7 @@ public class SheetService extends ServiceImpl<AnswerSheetMapper, AnswerSheet> {
         }
         ExamSession session = examSessionMapper.selectById(examId);
         if (session == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "考试场次不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "测试场次不存在");
         }
         AnswerSheet sheet = getOne(new QueryWrapper<AnswerSheet>()
                 .eq("session_id", examId).eq("user_id", userId), false);

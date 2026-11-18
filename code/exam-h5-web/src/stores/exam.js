@@ -1,4 +1,4 @@
-// 考试会话：进入考试（TAKE-02）后的答卷上下文与交卷结果，本地持久化用于断线续考
+// 测试会话：进入测试（TAKE-02）后的答卷上下文与交卷结果，本地持久化用于断线续考
 import { defineStore } from 'pinia'
 
 const key = (examId) => `h5_exam_session_${examId}`

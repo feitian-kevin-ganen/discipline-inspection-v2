@@ -1,8 +1,8 @@
 <template>
   <div class="take-page" v-loading="loading" element-loading-text="正在加载试卷...">
-    <!-- 顶栏：考试名称 + 倒计时 + 交卷 -->
+    <!-- 顶栏：测试名称 + 倒计时 + 交卷 -->
     <header class="topbar">
-      <div class="exam-title">{{ paper?.paperName || '在线考试' }}</div>
+      <div class="exam-title">{{ paper?.paperName || '在线测试' }}</div>
       <div class="countdown" :class="{ danger: remainingSec <= 300 }">
         <el-icon><Timer /></el-icon>
         <span>{{ fmtCountdown(remainingSec) }}</span>
@@ -263,7 +263,7 @@ function tickCountdown() {
   remainingSec.value = left
   if (left <= 300 && !reminded5Min && left > 0) {
     reminded5Min = true
-    ElMessageBox.alert('距离考试结束仅剩 5 分钟，请抓紧时间作答。', '时间提醒', { type: 'warning' })
+    ElMessageBox.alert('距离测试结束仅剩 5 分钟，请抓紧时间作答。', '时间提醒', { type: 'warning' })
   }
   if (left <= 0 && !submitted) {
     doSubmit(true)
@@ -356,7 +356,7 @@ function reportAway(type) {
       if (res.action === 'FORCE_SUBMIT') {
         handleRemoteSubmit('FORCED', '切屏次数超过上限，系统已强制交卷')
       } else if (type === 'RETURN' && res.action === 'WARN') {
-        ElMessageBox.alert(`您已离开考试页面 ${res.leaveCount} 次（上限 ${res.limit} 次），继续离开将被强制交卷！`, '警告', {
+        ElMessageBox.alert(`您已离开测试页面 ${res.leaveCount} 次（上限 ${res.limit} 次），继续离开将被强制交卷！`, '警告', {
           type: 'warning'
         })
       }
@@ -451,13 +451,13 @@ async function doSubmit(auto) {
     sessionStorage.setItem(`exam_submit_${examId}`, JSON.stringify(result))
   }
   if (auto) {
-    ElMessageBox.alert('考试时间已到，系统已自动交卷。', '提示', { type: 'info' }).catch(() => {})
+    ElMessageBox.alert('测试时间已到，系统已自动交卷。', '提示', { type: 'info' }).catch(() => {})
   }
   if (result || serverAcked) {
     router.replace(`/exam/result/${examId}`)
   } else {
     // 交卷请求未送达：答案已自动保存，到点由服务端自动收卷
-    ElMessageBox.alert('交卷请求未能送达，已作答内容不会丢失；到达截止时间后系统将自动收卷，您可稍后从考试中心查看状态。', '提示', {
+    ElMessageBox.alert('交卷请求未能送达，已作答内容不会丢失；到达截止时间后系统将自动收卷，您可稍后从测试中心查看状态。', '提示', {
       type: 'warning'
     }).catch(() => {})
     router.replace('/exam')
@@ -488,7 +488,7 @@ function cleanupTimers() {
 // ---------- 加载：断线续考恢复 ----------
 async function load() {
   if (!sheetId) {
-    ElMessage.warning('缺少答卷信息，请重新进入考试')
+    ElMessage.warning('缺少答卷信息，请重新进入测试')
     router.replace('/exam')
     return
   }
@@ -569,7 +569,7 @@ onBeforeUnmount(() => {
 onBeforeRouteLeave(async () => {
   if (submitted) return true
   try {
-    await ElMessageBox.confirm('考试正在进行中，答案已自动保存，确定要离开吗？可在考试中心继续答题。', '提示', {
+    await ElMessageBox.confirm('测试正在进行中，答案已自动保存，确定要离开吗？可在测试中心继续答题。', '提示', {
       type: 'warning',
       confirmButtonText: '离开',
       cancelButtonText: '继续答题'

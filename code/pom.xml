@@ -24,6 +24,7 @@
         <module>exam-exam</module>
         <module>exam-stat</module>
         <module>exam-practice</module>
+        <module>exam-integration</module>
         <module>exam-server</module>
     </modules>
 
@@ -74,6 +75,11 @@
             <dependency>
                 <groupId>com.group.exam</groupId>
                 <artifactId>exam-practice</artifactId>
+                <version>1.0.0</version>
+            </dependency>
+            <dependency>
+                <groupId>com.group.exam</groupId>
+                <artifactId>exam-integration</artifactId>
                 <version>1.0.0</version>
             </dependency>
 

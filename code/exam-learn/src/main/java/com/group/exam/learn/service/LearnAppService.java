@@ -8,6 +8,7 @@ import com.group.exam.common.security.LoginUser;
 import com.group.exam.common.security.SecurityUtils;
 import com.group.exam.learn.entity.LearnMaterial;
 import com.group.exam.learn.entity.LearnRecord;
+import com.group.exam.learn.support.DocxHtmlRenderer;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -277,9 +278,13 @@ public class LearnAppService {
 
     private record PageImage(byte[] bytes, int totalPages) {}
 
-    /** 页图渲染缓存：key = materialId:pageNo，超出容量整体清空（资料少、页数少，足够用） */
+    /** LEARN-03c 页图渲染缓存：key = materialId:pageNo，超出容量整体清空（资料少、页数少，足够用） */
     private static final int PAGE_CACHE_MAX = 500;
     private final Map<String, PageImage> pageImageCache = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** DOCX 在线预览缓存：key = materialId，超出容量整体清空 */
+    private static final int DOC_HTML_CACHE_MAX = 200;
+    private final Map<Long, String> docHtmlCache = new java.util.concurrent.ConcurrentHashMap<>();
 
     private PageImage renderPageImage(Long materialId, String objectName, int pageNo) throws java.io.IOException {
         String key = materialId + ":" + pageNo;
@@ -359,6 +364,48 @@ public class LearnAppService {
             }
         }
         return true;
+    }
+
+    /**
+     * LEARN-03f DOCX 在线预览：解析 word 结构输出 HTML（图片转 base64），浏览器排版显示。
+     * 旧版 .doc/.ppt 等二进制格式不支持，提示下载查看。
+     * 响应头 X-Total-Pages 为估算页数（显式分页符 + Word 渲染分页标记 + 1），
+     * 资料 page_count 为空时落库，供心跳进度（readPage/pageCount）使用。
+     */
+    public void streamDocHtml(Long materialId, jakarta.servlet.http.HttpServletResponse response) throws java.io.IOException {
+        LoginUser user = SecurityUtils.getLoginUser();
+        LearnMaterial m = requireVisible(materialId, user);
+        if (!StringUtils.hasText(m.getFileUrl())) {
+            throw new BizException(ErrorCode.NOT_FOUND, "该资料无附件文件");
+        }
+        String ext = LearnMaterialService.extOf(m.getFileUrl());
+        if (!"docx".equalsIgnoreCase(ext)) {
+            throw new BizException(ErrorCode.PARAM_ERROR,
+                    "该格式（" + (ext.isEmpty() ? "未知" : ext) + "）暂不支持在线预览，请下载后查看");
+        }
+        String html = docHtmlCache.get(materialId);
+        if (html == null) {
+            byte[] bytes;
+            try (io.minio.GetObjectResponse in = minioService.getObject(m.getFileUrl())) {
+                bytes = in.readAllBytes();
+            }
+            DocxHtmlRenderer.DocxHtml rendered = DocxHtmlRenderer.render(bytes);
+            html = rendered.html();
+            if (m.getPageCount() == null || m.getPageCount() <= 0) {
+                m.setPageCount(rendered.pageCount());
+                materialService.updateById(m);
+            }
+            if (docHtmlCache.size() >= DOC_HTML_CACHE_MAX) {
+                docHtmlCache.clear();
+            }
+            docHtmlCache.put(materialId, html);
+        }
+        int totalPages = m.getPageCount() != null && m.getPageCount() > 0 ? m.getPageCount() : 1;
+        response.setContentType("text/html;charset=UTF-8");
+        response.setHeader("Cache-Control", "private, max-age=3600");
+        response.setHeader("X-Total-Pages", String.valueOf(totalPages));
+        response.getOutputStream().write(html.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        response.getOutputStream().flush();
     }
 
     /** LEARN-05 断点续学进度 */

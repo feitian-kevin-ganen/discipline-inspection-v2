@@ -4,10 +4,15 @@
       <div class="login-logo">
         <van-icon name="shield-o" size="56" color="#fff" />
       </div>
-      <div class="login-title">纪检监察人员在线考试系统</div>
-      <div class="login-sub">手机端</div>
+      <div class="login-title">“纪检监察业务”学习平台</div>
     </div>
-    <van-form class="login-form" @submit="onSubmit">
+    <div v-if="ssoLoading" class="sso-loading">
+      <van-loading size="28px" color="#b3271e">国联 APP 登录验证中…</van-loading>
+    </div>
+    <div v-else-if="ssoEntering" class="sso-loading">
+      <van-loading size="28px" color="#b3271e">登录成功，正在进入…</van-loading>
+    </div>
+    <van-form v-else class="login-form" @submit="onSubmit">
       <van-cell-group inset>
         <van-field
           v-model="form.username"
@@ -37,7 +42,7 @@
 </template>
 
 <script setup>
-import { reactive, ref } from 'vue'
+import { onMounted, reactive, ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { showToast } from 'vant'
 import { useAuthStore } from '../../stores/auth'
@@ -46,7 +51,37 @@ const router = useRouter()
 const route = useRoute()
 const auth = useAuthStore()
 const loading = ref(false)
+const ssoLoading = ref(false)
+// 门户分流进入时首帧直接显示"正在进入"，不渲染登录表单，避免闪烁
+const ssoEntering = ref(!!sessionStorage.getItem('sso_redirect'))
 const form = reactive({ username: '', password: '' })
+
+// 国联 APP 单点免密登录：地址 A 携带 ?ticket=xxx 跳转回来时自动登录
+onMounted(async () => {
+  // 门户统一入口 /login 已完成 ticket 换令牌并写入本地存储，直接跳首页
+  if (sessionStorage.getItem('sso_redirect')) {
+    sessionStorage.removeItem('sso_redirect')
+    router.replace(route.query.redirect || '/')
+    return
+  }
+  const ticket = route.query.ticket
+  if (!ticket || typeof ticket !== 'string') return
+  ssoLoading.value = true
+  try {
+    const data = await auth.loginByTicket(ticket.trim())
+    if (data.mustChangePassword) {
+      showToast('首次登录请先修改密码')
+      router.replace('/change-password')
+    } else {
+      router.replace(route.query.redirect || '/')
+    }
+  } catch (e) {
+    // 校验失败回退到工号密码登录，错误信息已由拦截器 toast
+    showToast({ message: '单点登录失败，请使用工号密码登录', type: 'fail' })
+  } finally {
+    ssoLoading.value = false
+  }
+})
 
 async function onSubmit() {
   loading.value = true
@@ -112,5 +147,11 @@ async function onSubmit() {
 
 .login-btn {
   margin: 24px 16px;
+}
+
+.sso-loading {
+  display: flex;
+  justify-content: center;
+  padding: 48px 0;
 }
 </style>

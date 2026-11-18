@@ -85,6 +85,17 @@ public class MarkTaskService extends ServiceImpl<MarkTaskMapper, MarkTask> {
         Page<MarkTask> page = page(new Page<>(pageNum, pageSize), qw);
 
         Map<Long, String> examNames = examNamesOf(page.getRecords().stream().map(MarkTask::getSessionId).toList());
+        // 截止时间：取场次结束时间（阅卷在测试结束后截止）
+        Map<Long, LocalDateTime> sessionEndTimes = sessionEndTimesOf(page.getRecords().stream().map(MarkTask::getSessionId).toList());
+        // 题型：t_mark_task 无 ques_type 列，按 detailId 批量取答题明细的 ques_type
+        Map<Long, Integer> quesTypes = new HashMap<>();
+        List<Long> detailIds = page.getRecords().stream().map(MarkTask::getDetailId).distinct().toList();
+        if (!detailIds.isEmpty()) {
+            for (AnswerDetail d : answerDetailMapper.selectList(new QueryWrapper<AnswerDetail>()
+                    .select("id", "ques_type").in("id", detailIds))) {
+                quesTypes.put(d.getId(), d.getQuesType());
+            }
+        }
         return PageResult.of(page).map(t -> {
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("taskId", t.getId());
@@ -93,6 +104,7 @@ public class MarkTaskService extends ServiceImpl<MarkTaskMapper, MarkTask> {
             m.put("sheetId", t.getSheetId());
             m.put("detailId", t.getDetailId());
             m.put("quesId", t.getQuesId());
+            m.put("quesType", QuesTypeEnum.toApi(quesTypes.get(t.getDetailId())));
             m.put("markerId", t.getMarkerId());
             m.put("markerName", t.getMarkerName());
             m.put("myRole", t.getMarkerId() != null && t.getMarkerId().equals(user.getUserId()) ? "OWNER" : "UNCLAIMED");
@@ -100,6 +112,7 @@ public class MarkTaskService extends ServiceImpl<MarkTaskMapper, MarkTask> {
             m.put("score", t.getScore());
             m.put("assignTime", t.getAssignTime());
             m.put("markTime", t.getMarkTime());
+            m.put("deadline", sessionEndTimes.get(t.getSessionId()));
             return m;
         });
     }
@@ -370,5 +383,16 @@ public class MarkTaskService extends ServiceImpl<MarkTaskMapper, MarkTask> {
         }
         return examSessionMapper.selectBatchIds(sessionIds.stream().distinct().toList()).stream()
                 .collect(Collectors.toMap(ExamSession::getId, ExamSession::getSessionName));
+    }
+
+    /** 场次id → 场次结束时间（阅卷任务列表「截止时间」列用） */
+    private Map<Long, LocalDateTime> sessionEndTimesOf(List<Long> sessionIds) {
+        if (sessionIds == null || sessionIds.isEmpty()) {
+            return Map.of();
+        }
+        return examSessionMapper.selectList(new QueryWrapper<ExamSession>()
+                        .select("id", "end_time").in("id", sessionIds.stream().distinct().toList()))
+                .stream()
+                .collect(Collectors.toMap(ExamSession::getId, ExamSession::getEndTime));
     }
 }

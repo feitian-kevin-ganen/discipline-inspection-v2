@@ -7,7 +7,7 @@ import com.group.exam.common.core.PageResult;
 import com.group.exam.common.enums.ErrorCode;
 import com.group.exam.common.exception.BizException;
 import com.group.exam.common.security.SecurityUtils;
-import com.group.exam.common.util.JsonUtils;
+import com.group.exam.common.util.DbDialect;
 import com.group.exam.question.dto.DupHintVO;
 import com.group.exam.question.dto.ItemCreateResp;
 import com.group.exam.question.dto.ItemDetailVO;
@@ -41,20 +41,23 @@ public class QuesItemService extends ServiceImpl<QuesItemMapper, QuesItem> {
     private final QuesBankService quesBankService;
     private final QuesDupCheckService quesDupCheckService;
     private final SysConfigService sysConfigService;
+    private final boolean mysql;
 
     public QuesItemService(QuesBankService quesBankService,
                            QuesDupCheckService quesDupCheckService,
-                           SysConfigService sysConfigService) {
+                           SysConfigService sysConfigService,
+                           javax.sql.DataSource dataSource) {
         this.quesBankService = quesBankService;
         this.quesDupCheckService = quesDupCheckService;
         this.sysConfigService = sysConfigService;
+        this.mysql = DbDialect.isMysql(dataSource);
     }
 
     /**
-     * 题目分页查询（QUES-05）：bankId 含下级，支持题型/难度/状态/题干关键字/标签
+     * 题目分页查询（QUES-05）：bankId 含下级，支持题型/难度/状态/题干关键字/标签/来源(genType: AI/MANUAL)
      */
     public PageResult<ItemPageVO> pageItems(Long bankId, String quesType, String difficulty, String status,
-                                            String keyword, String tag, long pageNum, long pageSize) {
+                                            String keyword, String tag, String genType, long pageNum, long pageSize) {
         QueryWrapper<QuesItem> qw = new QueryWrapper<>();
         if (bankId != null) {
             Set<Long> bankIds = quesBankService.expandBankIds(List.of(bankId), true);
@@ -79,7 +82,16 @@ public class QuesItemService extends ServiceImpl<QuesItemMapper, QuesItem> {
             qw.like("stem", keyword.trim());
         }
         if (tag != null && !tag.isBlank()) {
-            qw.apply("knowledge_tags @> CAST({0} AS jsonb)", JsonUtils.toJson(List.of(tag.trim())));
+            qw.apply(mysql
+                    ? "JSON_CONTAINS(knowledge_tags, JSON_QUOTE({0}))"
+                    : "knowledge_tags @> CAST({0} AS jsonb)", tag.trim());
+        }
+        if (genType != null && !genType.isBlank()) {
+            String gt = genType.trim().toUpperCase();
+            if (!"AI".equals(gt) && !"MANUAL".equals(gt)) {
+                throw new BizException(ErrorCode.PARAM_ERROR, "题目来源无法识别: " + genType);
+            }
+            qw.eq("gen_type", gt);
         }
         qw.orderByDesc("id");
 
@@ -110,6 +122,8 @@ public class QuesItemService extends ServiceImpl<QuesItemMapper, QuesItem> {
         QuesItem item = new QuesItem();
         fillBasics(req, item);
         QuesItemAssembler.applyStorage(req, item);
+        // 题目来源：默认人工录入；AI 采纳链路显式传 AI
+        item.setGenType("AI".equalsIgnoreCase(req.getGenType() == null ? "" : req.getGenType().trim()) ? "AI" : "MANUAL");
         item.setStatus(sysConfigService.initialItemStatus());
         item.setCreateBy(currentUserIdOrNull());
 
@@ -250,7 +264,7 @@ public class QuesItemService extends ServiceImpl<QuesItemMapper, QuesItem> {
             return List.of();
         }
         QueryWrapper<QuesItem> qw = enabledWrapper(ids, quesType, difficulty);
-        qw.last("ORDER BY random() LIMIT " + count);
+        qw.last("ORDER BY RAND() LIMIT " + count);
         return list(qw);
     }
 
@@ -268,7 +282,7 @@ public class QuesItemService extends ServiceImpl<QuesItemMapper, QuesItem> {
 
     /**
      * 练习抽题（PRAC-01）：bankIds 空表示全库（含子分类展开），difficulties 支持多值
-     * （ADVANCED → 2,3）；ORDER BY random() 抽 count 道，可用不足时返回全部可用由调用方判 70002
+     * （ADVANCED → 2,3）；ORDER BY RAND() 抽 count 道，可用不足时返回全部可用由调用方判 70002
      */
     public List<QuesItem> drawPractice(List<Long> bankIds, Integer quesType, List<Integer> difficulties, int count) {
         QueryWrapper<QuesItem> qw = new QueryWrapper<>();
@@ -284,7 +298,7 @@ public class QuesItemService extends ServiceImpl<QuesItemMapper, QuesItem> {
         if (difficulties != null && !difficulties.isEmpty()) {
             qw.in("difficulty", difficulties);
         }
-        qw.last("ORDER BY random() LIMIT " + Math.max(count, 1));
+        qw.last("ORDER BY RAND() LIMIT " + Math.max(count, 1));
         return list(qw);
     }
 
@@ -327,6 +341,7 @@ public class QuesItemService extends ServiceImpl<QuesItemMapper, QuesItem> {
         vo.setScoreSuggest(item.getScoreSuggest());
         vo.setTags(item.getKnowledgeTags());
         vo.setStatus(ItemStatusEnum.toApi(item.getStatus()));
+        vo.setGenType(item.getGenType() == null || item.getGenType().isBlank() ? "MANUAL" : item.getGenType());
         vo.setUseCount(item.getUseCount());
         vo.setCorrectRate(item.getRightRate());
         vo.setCreatedTime(item.getCreateTime());

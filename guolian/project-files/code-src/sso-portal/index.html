@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>“纪检监察业务”学习平台</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      height: 100vh; display: flex; align-items: center; justify-content: center;
+      background: linear-gradient(135deg, #1f3a5f 0%, #2d5a8a 100%);
+      font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+    }
+    .box { text-align: center; color: #fff; }
+    .spinner {
+      width: 46px; height: 46px; margin: 0 auto 18px;
+      border: 4px solid rgba(255, 255, 255, 0.25);
+      border-top-color: #fff; border-radius: 50%;
+      animation: spin 0.9s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .msg { font-size: 16px; letter-spacing: 1px; }
+    .links { margin-top: 22px; }
+    .links a {
+      display: inline-block; margin: 6px 10px; padding: 8px 18px;
+      color: #fff; text-decoration: none; font-size: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.5); border-radius: 20px;
+    }
+    .links a:hover { background: rgba(255, 255, 255, 0.15); }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <div class="spinner"></div>
+    <p class="msg" id="msg">正在登录，请稍候…</p>
+    <div class="links" id="links" style="display:none">
+      <a href="/mgmt/login">管理端</a>
+      <a href="/learning-web/login">用户端</a>
+      <a href="/learning-h5/login">移动端</a>
+    </div>
+  </div>
+  <script>
+    (function () {
+      var msg = document.getElementById('msg');
+      var links = document.getElementById('links');
+      // 管理员角色：命中则分流到管理端
+      var ADMIN_ROLES = ['SUPER_ADMIN', 'HQ_ADMIN', 'L2_ADMIN', 'SUB_ADMIN'];
+
+      function fail(text) {
+        msg.textContent = text;
+        links.style.display = 'block';
+        document.querySelector('.spinner').style.display = 'none';
+      }
+
+      var ticket = new URLSearchParams(location.search).get('ticket');
+      if (!ticket) {
+        fail('未携带 ticket，请选择入口登录');
+        return;
+      }
+
+      fetch('/api/v1/integration/ticket/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ticket: ticket })
+      })
+        .then(function (r) { return r.json(); })
+        .then(function (res) {
+          if (!res || res.code !== 0) {
+            fail((res && res.message) || '单点登录失败');
+            return;
+          }
+          var d = res.data;
+          var roles = (d.user && d.user.roles) || [];
+          var isAdmin = ADMIN_ROLES.some(function (r) { return roles.indexOf(r) >= 0; });
+          var isMobile = /Android|iPhone|iPad|iPod|Mobile|HarmonyOS/i.test(navigator.userAgent);
+
+          // 移动端优先；PC 按角色：管理员->管理端，其他（考生/阅卷）->用户端
+          var base;
+          if (isMobile) base = '/learning-h5';
+          else if (isAdmin) base = '/mgmt';
+          else base = '/learning-web';
+
+          // 同源，直接把令牌写入目标端的 localStorage（格式与各端登录成功时一致）
+          if (base === '/learning-h5') {
+            localStorage.setItem('h5_auth', JSON.stringify({
+              accessToken: d.accessToken,
+              refreshToken: d.refreshToken,
+              user: d.user,
+              mustChangePassword: !!d.mustChangePassword
+            }));
+          } else {
+            // 与管理端/用户端各自的 localStorage 键前缀保持一致（mgmt_ / web_），
+            // 避免两端在同源 6001 下互相覆盖登录态。
+            // 同时双写一份旧键名（无前缀）：兼容浏览器缓存/部署顺序导致的"新旧版本混搭"——
+            // 旧版前端读旧键、新版前端读新键，任一口径都能拿到令牌，单点登录不因版本不一致而失效。
+            var p = base === '/mgmt' ? 'mgmt_' : 'web_';
+            localStorage.setItem(p + 'accessToken', d.accessToken);
+            localStorage.setItem(p + 'refreshToken', d.refreshToken);
+            localStorage.setItem(p + 'userInfo', JSON.stringify(d.user));
+            if (d.mustChangePassword) localStorage.setItem(p + 'mustChangePassword', '1');
+            // 兼容旧版前端的冗余写入（仅本次跳转目标端；该端登录后旧键即被清理）
+            localStorage.setItem('accessToken', d.accessToken);
+            localStorage.setItem('refreshToken', d.refreshToken);
+            localStorage.setItem('userInfo', JSON.stringify(d.user));
+            if (d.mustChangePassword) localStorage.setItem('mustChangePassword', '1');
+          }
+
+          if (d.mustChangePassword) {
+            location.replace(base + '/change-password');
+            return;
+          }
+          // 目标端登录页凭此标记直接跳首页（不再渲染登录表单，避免闪烁）
+          sessionStorage.setItem('sso_redirect', '1');
+          msg.textContent = '登录成功，正在进入…';
+          location.replace(base + '/login');
+        })
+        .catch(function () { fail('网络异常，请稍后重试'); });
+    })();
+  </script>
+</body>
+</html>

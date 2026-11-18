@@ -8,7 +8,7 @@ Page({
     // 2. 开发阶段请在微信开发者工具勾选
     //    「详情 → 本地设置 → 不校验合法域名、web-view（业务域名）、TLS 版本以及 HTTPS 证书」，
     //    否则 http 地址无法在 web-view 中加载。
-    h5Url: 'http://10.110.40.160:6001/'
+    h5Url: 'http://10.110.40.160:6003/'
   },
 
   // H5 端通过 wx.miniProgram.postMessage 发来的消息（仅在小程序

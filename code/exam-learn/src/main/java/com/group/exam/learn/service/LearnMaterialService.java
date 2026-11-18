@@ -98,7 +98,7 @@ public class LearnMaterialService extends ServiceImpl<LearnMaterialMapper, Learn
         if (StringUtils.hasText(keyword)) {
             String kw = keyword.trim();
             qw.and(w -> w.like("title", kw).or().like("summary", kw)
-                    .or().apply("tags::text LIKE {0}", "%" + kw.replace("%", "\\%").replace("_", "\\_") + "%"));
+                    .or().apply("CAST(tags AS CHAR) LIKE {0}", "%" + kw.replace("%", "\\%").replace("_", "\\_") + "%"));
         }
         Integer statusCode = statusToCode(status);
         if (statusCode != null) {
@@ -184,6 +184,7 @@ public class LearnMaterialService extends ServiceImpl<LearnMaterialMapper, Learn
         detail.put("summary", m.getSummary());
         detail.put("contentHtml", m.getContent());
         detail.put("fileUrl", StringUtils.hasText(m.getFileUrl()) ? minioService.presignedUrl(m.getFileUrl()) : null);
+        detail.put("fileName", m.getFileName());
         // t_learn_material 无 file_md5 / audit_comment 列，按文档字段返回 null
         detail.put("fileMd5", null);
         detail.put("pageCount", m.getPageCount());
@@ -258,8 +259,89 @@ public class LearnMaterialService extends ServiceImpl<LearnMaterialMapper, Learn
         sysLogService.log(1, "LIB", "编辑资料", "编辑资料[" + m.getTitle() + "(id=" + m.getId() + ")]", 1);
     }
 
-    // ---------------------------------------------------------------- LIB-09 删除资料
+    // ---------------------------------------------------------------- LIB-0x 管理端资料预览
 
+    /** 预览文件地址（预签名）：视频返回 mp4 + 可能的 webm 备用流 */
+    public Map<String, Object> previewFile(Long materialId) {
+        LearnMaterial m = requireInScope(materialId);
+        Map<String, Object> data = new LinkedHashMap<>();
+        if (!StringUtils.hasText(m.getFileUrl())) {
+            data.put("fileUrl", null);
+            data.put("altFileUrl", null);
+            data.put("ext", "");
+            return data;
+        }
+        data.put("fileUrl", minioService.presignedUrl(m.getFileUrl(), 3600));
+        data.put("ext", extOf(m.getFileUrl()));
+        String webm = m.getFileUrl().replaceAll("(?i)\\.mp4$", ".webm");
+        if (!webm.equals(m.getFileUrl()) && minioService.exists(webm)) {
+            data.put("altFileUrl", minioService.presignedUrl(webm, 3600));
+        } else {
+            data.put("altFileUrl", null);
+        }
+        return data;
+    }
+
+    /** DOCX 在线预览 HTML（复用学习端 DocxHtmlRenderer） */
+    public String previewDocHtml(Long materialId) {
+        LearnMaterial m = requireInScope(materialId);
+        if (!StringUtils.hasText(m.getFileUrl()) || !"docx".equalsIgnoreCase(extOf(m.getFileUrl()))) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "该格式暂不支持在线预览");
+        }
+        byte[] bytes;
+        try (io.minio.GetObjectResponse in = minioService.getObject(m.getFileUrl())) {
+            bytes = in.readAllBytes();
+        } catch (Exception e) {
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "文件读取失败: " + e.getMessage());
+        }
+        try {
+            com.group.exam.learn.support.DocxHtmlRenderer.DocxHtml rendered =
+                    com.group.exam.learn.support.DocxHtmlRenderer.render(bytes);
+            if (m.getPageCount() == null || m.getPageCount() <= 0) {
+                m.setPageCount(rendered.pageCount());
+                updateById(m);
+            }
+            return rendered.html();
+        } catch (Exception e) {
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "文档解析失败: " + e.getMessage());
+        }
+    }
+
+    /** PDF 逐页转 JPEG（页图预览），总页数由响应头 X-Total-Pages 下发 */
+    public void previewPageImage(Long materialId, int pageNo, jakarta.servlet.http.HttpServletResponse response)
+            throws java.io.IOException {
+        LearnMaterial m = requireInScope(materialId);
+        if (!StringUtils.hasText(m.getFileUrl()) || !"pdf".equalsIgnoreCase(extOf(m.getFileUrl()))) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "仅 PDF 资料支持页图预览");
+        }
+        byte[] pdfBytes;
+        try (io.minio.GetObjectResponse in = minioService.getObject(m.getFileUrl())) {
+            pdfBytes = in.readAllBytes();
+        }
+        try (org.apache.pdfbox.pdmodel.PDDocument doc = org.apache.pdfbox.pdmodel.PDDocument.load(pdfBytes)) {
+            int total = doc.getNumberOfPages();
+            if (pageNo < 1 || pageNo > total) {
+                throw new BizException(ErrorCode.NOT_FOUND, "页码超出范围（共 " + total + " 页）");
+            }
+            org.apache.pdfbox.rendering.PDFRenderer renderer = new org.apache.pdfbox.rendering.PDFRenderer(doc);
+            java.awt.image.BufferedImage image = renderer.renderImageWithDPI(pageNo - 1, 150,
+                    org.apache.pdfbox.rendering.ImageType.RGB);
+            java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+            javax.imageio.ImageIO.write(image, "jpeg", out);
+            response.setContentType("image/jpeg");
+            response.setHeader("Cache-Control", "private, max-age=3600");
+            response.setHeader("X-Total-Pages", String.valueOf(total));
+            response.setContentLength(out.size());
+            response.getOutputStream().write(out.toByteArray());
+            response.getOutputStream().flush();
+        } catch (BizException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "页图渲染失败: " + e.getMessage());
+        }
+    }
+
+    // ---------------------------------------------------------------- LIB-09 删除资料
     public void deleteMaterial(Long materialId) {
         LearnMaterial m = requireInScope(materialId);
         removeById(materialId);
@@ -502,8 +584,45 @@ public class LearnMaterialService extends ServiceImpl<LearnMaterialMapper, Learn
 
     private void storeFile(LearnMaterial m, MultipartFile file) {
         String objectName = minioService.buildObjectName("material", file.getOriginalFilename());
-        try (InputStream in = file.getInputStream()) {
-            minioService.upload(objectName, in, file.getSize(), resolveContentType(file));
+        // 记录原始上传文件名（编辑弹窗「当前文件」展示用；对象名是 UUID，无法还原）
+        m.setFileName(file.getOriginalFilename());
+        java.nio.file.Path tmpIn = null;
+        java.nio.file.Path tmpOut = null;
+        try {
+            // mp4 视频重封装 faststart（moov 元数据盒前置）：浏览器无需下载大量数据即可起播，
+            // 避免"打开视频要等好一会儿"。stream copy 不转码、无画质损失、耗时约为文件大小的秒级拷贝。
+            // ffmpeg 不可用或重封装失败时回退原样上传，不影响上传主流程（与封面抽帧同一策略）。
+            if ("mp4".equalsIgnoreCase(extOf(file.getOriginalFilename()))) {
+                try {
+                    tmpIn = java.nio.file.Files.createTempFile("exam-up-", ".mp4");
+                    file.transferTo(tmpIn);
+                    tmpOut = java.nio.file.Paths.get(tmpIn.toString() + ".faststart.mp4");
+                    Process p = new ProcessBuilder(ffmpegPath, "-y", "-i", tmpIn.toString(),
+                            "-c", "copy", "-movflags", "faststart", tmpOut.toString())
+                            .redirectErrorStream(true).start();
+                    if (p.waitFor(300, java.util.concurrent.TimeUnit.SECONDS)
+                            && p.exitValue() == 0 && java.nio.file.Files.exists(tmpOut)) {
+                        try (InputStream in = java.nio.file.Files.newInputStream(tmpOut)) {
+                            minioService.upload(objectName, in, java.nio.file.Files.size(tmpOut), "video/mp4");
+                        }
+                        m.setFileUrl(objectName);
+                        m.setFileSize(java.nio.file.Files.size(tmpOut));
+                        return;
+                    }
+                } catch (Exception ignored) {
+                    // 重封装失败：继续走原样上传
+                } finally {
+                    if (tmpIn != null) {
+                        java.nio.file.Files.deleteIfExists(tmpIn);
+                    }
+                    if (tmpOut != null) {
+                        java.nio.file.Files.deleteIfExists(tmpOut);
+                    }
+                }
+            }
+            try (InputStream in = file.getInputStream()) {
+                minioService.upload(objectName, in, file.getSize(), resolveContentType(file));
+            }
         } catch (BizException e) {
             throw e;
         } catch (Exception e) {

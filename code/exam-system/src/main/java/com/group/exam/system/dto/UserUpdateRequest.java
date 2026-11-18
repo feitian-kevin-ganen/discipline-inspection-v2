@@ -20,6 +20,9 @@ public class UserUpdateRequest {
     private String position;
 
     private List<String> roleCodes;
+
+    /** 国联APP员工ID（ticket免密登录匹配用，可空） */
+    private String empId;
     public String getName() {
         return name;
     }
@@ -66,5 +69,13 @@ public class UserUpdateRequest {
 
     public void setRoleCodes(List<String> roleCodes) {
         this.roleCodes = roleCodes;
+    }
+
+    public String getEmpId() {
+        return empId;
+    }
+
+    public void setEmpId(String empId) {
+        this.empId = empId;
     }
 }

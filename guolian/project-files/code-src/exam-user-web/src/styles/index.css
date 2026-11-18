@@ -1,0 +1,39 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', Arial, sans-serif;
+  background-color: #f5f7fa;
+  color: #303133;
+}
+
+.page {
+  padding: 4px;
+}
+
+.rich-content img {
+  max-width: 100%;
+}
+
+.rich-content {
+  line-height: 1.8;
+  word-break: break-word;
+}
+
+.text-secondary {
+  color: #909399;
+  font-size: 13px;
+}
+
+.mb16 {
+  margin-bottom: 16px;
+}

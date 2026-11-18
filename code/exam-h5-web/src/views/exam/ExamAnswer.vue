@@ -177,7 +177,7 @@ if (!session) {
   router.replace('/exam')
 }
 const sheetId = session ? session.sheetId : null
-const examName = ref(session ? session.examName : '在线考试')
+const examName = ref(session ? session.examName : '在线测试')
 const examRules = (session && session.examRules) || {}
 
 const loading = ref(true)
@@ -219,7 +219,7 @@ function startTimers() {
     remainingSec.value = Math.round(localRemaining())
     if (!warned5min && remainingSec.value > 0 && remainingSec.value <= 300) {
       warned5min = true
-      showDialog({ title: '时间提醒', message: '距考试结束仅剩 5 分钟，请抓紧时间作答。' })
+      showDialog({ title: '时间提醒', message: '距测试结束仅剩 5 分钟，请抓紧时间作答。' })
     }
     if (remainingSec.value <= 0) {
       autoSubmit()
@@ -482,8 +482,8 @@ function onServerTerminated(status) {
   answerQueue.clearAll(sheetId)
   examStore.clearSession(examId)
   showDialog({
-    title: '考试已结束',
-    message: status === 'FORCED' ? '考试已被强制收卷。' : '考试已交卷。'
+    title: '测试已结束',
+    message: status === 'FORCED' ? '测试已被强制收卷。' : '测试已交卷。'
   }).finally(() => {
     router.replace(`/exam/result/${examId}`)
   })
@@ -524,7 +524,7 @@ async function onSubmitClick() {
 
 function autoSubmit() {
   if (submitted || submitting.value) return
-  showNotify({ type: 'warning', message: '考试时间到，正在自动交卷...', duration: 0 })
+  showNotify({ type: 'warning', message: '测试时间到，正在自动交卷...', duration: 0 })
   doSubmit()
 }
 
@@ -621,7 +621,7 @@ async function init() {
     window.addEventListener('beforeunload', onBeforeUnload)
   } catch (e) {
     if (!e.kicked) {
-      showDialog({ title: '进入考试失败', message: e.message || '请稍后重试' }).finally(() => router.replace('/exam'))
+      showDialog({ title: '进入测试失败', message: e.message || '请稍后重试' }).finally(() => router.replace('/exam'))
     }
   } finally {
     loading.value = false

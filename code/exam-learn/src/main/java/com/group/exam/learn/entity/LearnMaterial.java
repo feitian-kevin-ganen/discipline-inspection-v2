@@ -38,6 +38,9 @@ public class LearnMaterial {
     /** 文件对象名（MinIO），图文类型为空 */
     private String fileUrl;
 
+    /** 原始上传文件名（展示用），历史数据可能为空 */
+    private String fileName;
+
     /** 图文正文（file_type=5） */
     private String content;
 

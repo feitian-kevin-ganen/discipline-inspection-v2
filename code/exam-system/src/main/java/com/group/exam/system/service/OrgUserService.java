@@ -21,6 +21,7 @@ import com.group.exam.system.entity.SysRole;
 import com.group.exam.system.mapper.OrgUserMapper;
 import com.group.exam.system.mapper.OrgUserRoleMapper;
 import com.group.exam.system.util.PasswordGenerator;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -48,6 +49,7 @@ import java.util.stream.Collectors;
 /**
  * 人员/账号服务（人员管理 + 认证支撑）
  */
+@Slf4j
 @Service
 public class OrgUserService extends ServiceImpl<OrgUserMapper, OrgUser> {
 
@@ -82,6 +84,31 @@ public class OrgUserService extends ServiceImpl<OrgUserMapper, OrgUser> {
             return null;
         }
         return getOne(new QueryWrapper<OrgUser>().eq("job_no", jobNo), false);
+    }
+
+    /**
+     * 国联APP ticket免密登录的用户匹配：国联员工ID 或 本地工号 任一命中即可。
+     * 目标库未执行 v1.3 升级脚本（无 emp_id 列）时降级为仅工号匹配，
+     * 降级查询显式排除 emp_id 列，避免裸 SQL 错误直接抛给前端。
+     */
+    private static final String[] COLUMNS_NO_EMP_ID = {
+            "id", "job_no", "user_name", "password_hash", "phone", "gender",
+            "org_id", "org_path", "position", "account_status", "pwd_update_time",
+            "last_login_time", "last_login_ip", "source", "user_group",
+            "mp_openid", "unionid", "create_by", "create_time", "update_by",
+            "update_time", "deleted"};
+
+    public OrgUser getByEmpIdOrJobNo(String empId) {
+        if (!StringUtils.hasText(empId)) {
+            return null;
+        }
+        try {
+            return getOne(new QueryWrapper<OrgUser>().and(q ->
+                    q.eq("emp_id", empId).or().eq("job_no", empId)), false);
+        } catch (Exception e) {
+            log.warn("按emp_id匹配失败（目标库可能未执行v1.3升级脚本），降级为仅工号匹配: {}", e.getMessage());
+            return getOne(new QueryWrapper<OrgUser>().select(COLUMNS_NO_EMP_ID).eq("job_no", empId), false);
+        }
     }
 
     /**
@@ -165,6 +192,7 @@ public class OrgUserService extends ServiceImpl<OrgUserMapper, OrgUser> {
         item.put("userId", user.getId());
         item.put("name", user.getUserName());
         item.put("jobNo", user.getJobNo());
+        item.put("empId", user.getEmpId());
         item.put("phone", user.getPhone());
         item.put("gender", genderToCode(user.getGender()));
         item.put("orgId", user.getOrgId());
@@ -241,6 +269,9 @@ public class OrgUserService extends ServiceImpl<OrgUserMapper, OrgUser> {
         }
         if (req.getPosition() != null) {
             user.setPosition(req.getPosition());
+        }
+        if (req.getEmpId() != null) {
+            user.setEmpId(StringUtils.hasText(req.getEmpId()) ? req.getEmpId() : null);
         }
         if (req.getOrgId() != null && !req.getOrgId().equals(user.getOrgId())) {
             OrgUnit unit = requireUnitInScope(req.getOrgId());

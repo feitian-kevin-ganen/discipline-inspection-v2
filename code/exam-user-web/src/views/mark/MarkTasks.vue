@@ -13,7 +13,7 @@
         </div>
       </template>
       <el-table :data="list" v-loading="loading">
-        <el-table-column prop="examName" label="考试名称" min-width="180" show-overflow-tooltip />
+        <el-table-column prop="examName" label="测试名称" min-width="180" show-overflow-tooltip />
         <el-table-column label="题目" min-width="240">
           <template #default="{ row }">
             <div>

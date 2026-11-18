@@ -80,7 +80,7 @@ public class ScorePublishService extends ServiceImpl<ExamSessionMapper, ExamSess
     public Map<String, Object> publish(Long examId) {
         ExamSession session = getById(examId);
         if (session == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "考试场次不存在: " + examId);
+            throw new BizException(ErrorCode.NOT_FOUND, "测试场次不存在: " + examId);
         }
         SecurityUtils.checkOrgScope(session.getCreateOrgPath());
         LoginUser user = SecurityUtils.getLoginUser();
@@ -147,7 +147,7 @@ public class ScorePublishService extends ServiceImpl<ExamSessionMapper, ExamSess
         updateById(session);
         // 成绩发布通知（noticeType=2）
         sysNoticeService.sendBatch(2, "成绩发布：" + session.getSessionName(),
-                "考试[" + session.getSessionName() + "]成绩已发布，请前往考生端查询",
+                "测试[" + session.getSessionName() + "]成绩已发布，请前往考生端查询",
                 "session", examId, candidates.stream().map(ExamCandidate::getUserId).toList());
         // 场次×单位预聚合统计快照
         rebuildStatSnapshot(session, candidates, fresh);

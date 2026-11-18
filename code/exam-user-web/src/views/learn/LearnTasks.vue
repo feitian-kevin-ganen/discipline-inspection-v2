@@ -37,7 +37,9 @@
         <el-table-column label="要求有效时长" width="120" align="center">
           <template #default="{ row }">{{ fmtDuration(row.requiredSec) }}</template>
         </el-table-column>
-        <el-table-column prop="deadline" label="完成期限" width="170" />
+        <el-table-column label="完成期限" width="170">
+          <template #default="{ row }">{{ fmtTime(row.deadline) }}</template>
+        </el-table-column>
         <el-table-column label="完成度" width="180">
           <template #default="{ row }">
             <el-progress :percentage="taskPct(row)" :status="row.myStatus === 'DONE' ? 'success' : undefined" :stroke-width="10" />
@@ -50,8 +52,8 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="completedTime" label="完成时间" width="170">
-          <template #default="{ row }">{{ row.completedTime || '—' }}</template>
+        <el-table-column label="完成时间" width="170">
+          <template #default="{ row }">{{ fmtTime(row.completedTime) }}</template>
         </el-table-column>
       </el-table>
       <div class="pager">
@@ -71,7 +73,7 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import { getLearnTasks } from '@/api/learn'
-import { fmtDuration, MATERIAL_TYPE_NAME } from '@/utils'
+import { fmtDuration, fmtTime, MATERIAL_TYPE_NAME } from '@/utils'
 
 const loading = ref(false)
 const list = ref([])

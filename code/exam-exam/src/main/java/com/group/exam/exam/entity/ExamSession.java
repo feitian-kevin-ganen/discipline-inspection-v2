@@ -13,11 +13,11 @@ import java.time.LocalDateTime;
 import java.util.Map;
 
 /**
- * 考试场次（t_exam_session）
+ * 测试场次（t_exam_session）
  *
  * <p>session_status：0未开始 1进行中 2已结束 3成绩已发布 4已取消；
  * session_kind：1正考 2补考。
- * 说明：考试须知 notice 无独立列，存于 paper_strategy_snapshot.notice。
+ * 说明：测试须知 notice 无独立列，存于 paper_strategy_snapshot.notice。
  */
 @Data
 @TableName(value = "t_exam_session", autoResultMap = true)

@@ -65,7 +65,7 @@ public class ExamAutoCloseJob {
         fresh.setSessionStatus(SessionStatusEnum.ENDED.getCode());
         examSessionService.updateById(fresh);
         sysLogService.log(1, "EXAM", "场次自动结束",
-                "场次[" + fresh.getSessionName() + "] 到达结束时间，自动强制收卷 " + forced + " 份并结束考试", 1);
+                "场次[" + fresh.getSessionName() + "] 到达结束时间，自动强制收卷 " + forced + " 份并结束测试", 1);
         log.info("场次[{}] 到达结束时间自动收卷 {} 份并结束", fresh.getSessionName(), forced);
     }
 }
