@@ -20,6 +20,10 @@
         </dependency>
         <dependency>
             <groupId>com.group.exam</groupId>
+            <artifactId>exam-workflow</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.group.exam</groupId>
             <artifactId>exam-system</artifactId>
         </dependency>
         <dependency>

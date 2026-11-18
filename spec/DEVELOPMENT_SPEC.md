@@ -88,6 +88,20 @@ chore(数据库): 新增通知批次号字段及回填脚本
 - 不得同时运行多个**写库脚本**。
 - 多人/多任务共用环境时，必须排队或申请独立资源。
 
+## 11. 审批统一走工作流
+
+- 所有业务审批（题目审核、学习资料审核，以及后续新增的审批类需求）**统一由工作流引擎驱动**，不得在业务 Service 里用 if/else 写死审批状态流转。
+- 工作流能力集中在 `code/exam-workflow` 模块（`com.group.exam.workflow`），基于 Flowable 7.x：
+  - `FlowInstanceService`：`start` / `completeByBiz` / `cancelByBiz` / `todoTasks` / `doneTasks` / `myStarted` / `detail` / `definitions`；
+  - `FlowStatusCallback` SPI：业务模块实现 `@Component("<流程key>")` 回调，处理通过/驳回后的业务落库；
+  - 流程定义放在 `exam-workflow/src/main/resources/processes/*.bpmn20.xml`，新增审批只需加 BPMN + 回调实现；
+  - 流程实例与业务的关联表为 `flow_biz_instance`，建表脚本 `exam-server/src/main/resources/db/schema-workflow-mysql.sql`。
+- 业务侧约定：
+  - 进入审批态时调用 `start`（流程未部署要 try/catch 降级，不得阻断业务保存）；
+  - 审批接口先判断 `hasRunning`，有运行中实例则 `completeByBiz` 走工作流，无实例则保留老数据直接改状态的兼容分支；
+  - 停用/删除业务数据时调用 `cancelByBiz` 终止运行中的流程实例。
+- 新增审批类型必须同步：BPMN 流程定义、回调实现、前端「审批流程」菜单可见性、以及授权 SQL（如需）。
+
 ---
 
 ## 附：每次修改代码前自检
@@ -104,4 +118,5 @@ chore(数据库): 新增通知批次号字段及回填脚本
 - [ ] 提交日志符合中文 conventional 格式；
 - [ ] 未自行编造未定义的需求；
 - [ ] 未影响其他项目进程或配置；
-- [ ] 未在构建/写库环节造成并发冲突。
+- [ ] 未在构建/写库环节造成并发冲突；
+- [ ] 审批类需求已通过 `exam-workflow` 工作流实现，未在业务代码写死状态流转。

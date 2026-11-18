@@ -155,3 +155,14 @@ export const sysApi = {
 export const fileApi = {
   uploadImage: (formData) => request.post('/admin/files/image', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
 }
+
+// FLOW 审批流程（工作流引擎）
+export const workflowApi = {
+  definitions: () => request.get('/workflow/definitions'),
+  todo: () => request.get('/workflow/task/todo'),
+  done: () => request.get('/workflow/task/done'),
+  complete: (taskId, data) => request.post(`/workflow/task/${taskId}/complete`, data),
+  start: (data) => request.post('/workflow/start', data),
+  myStarted: () => request.get('/workflow/instance/my'),
+  detail: (procInstId) => request.get(`/workflow/instance/${procInstId}`)
+}

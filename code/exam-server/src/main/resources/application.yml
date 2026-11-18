@@ -39,6 +39,12 @@ mybatis-plus:
       logic-delete-value: 1
       logic-not-delete-value: 0
 
+# 审批工作流（Flowable）：自动建表；关闭异步执行器（本系统只用同步审批）
+flowable:
+  database-schema-update: true
+  async-executor-activate: false
+  history-level: audit
+
 springdoc:
   api-docs:
     path: /v3/api-docs

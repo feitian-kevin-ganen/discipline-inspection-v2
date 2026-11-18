@@ -15,6 +15,7 @@ import com.group.exam.learn.mapper.LearnMaterialMapper;
 import com.group.exam.system.service.OrgUnitService;
 import com.group.exam.system.service.SysConfigService;
 import com.group.exam.system.service.SysLogService;
+import com.group.exam.workflow.service.FlowInstanceService;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
@@ -69,6 +70,10 @@ public class LearnMaterialService extends ServiceImpl<LearnMaterialMapper, Learn
     private final SysLogService sysLogService;
     private final OrgUnitService orgUnitService;
     private final MinioService minioService;
+    private final FlowInstanceService flowInstanceService;
+
+    /** 资料审核流程定义 key（BPMN process id） */
+    private static final String FLOW_MATERIAL_AUDIT = "material_audit";
 
     /** ffmpeg 可执行文件路径，用于视频封面自动抽帧；默认取 PATH 中的 ffmpeg */
     @org.springframework.beans.factory.annotation.Value("${exam.ffmpeg-path:ffmpeg}")
@@ -76,13 +81,15 @@ public class LearnMaterialService extends ServiceImpl<LearnMaterialMapper, Learn
 
     public LearnMaterialService(LearnCategoryService categoryService, LearnScopeChecker scopeChecker,
                                 SysConfigService sysConfigService, SysLogService sysLogService,
-                                OrgUnitService orgUnitService, MinioService minioService) {
+                                OrgUnitService orgUnitService, MinioService minioService,
+                                FlowInstanceService flowInstanceService) {
         this.categoryService = categoryService;
         this.scopeChecker = scopeChecker;
         this.sysConfigService = sysConfigService;
         this.sysLogService = sysLogService;
         this.orgUnitService = orgUnitService;
         this.minioService = minioService;
+        this.flowInstanceService = flowInstanceService;
     }
 
     // ---------------------------------------------------------------- LIB-05 分页查询（管理端）
@@ -165,6 +172,9 @@ public class LearnMaterialService extends ServiceImpl<LearnMaterialMapper, Learn
         m.setCreateBy(current.getUserId());
         applyInitialAuditStatus(m);
         save(m);
+        if (m.getAuditStatus() != null && m.getAuditStatus() == 1) {
+            startAuditFlow(m);
+        }
         sysLogService.log(1, "LIB", "上传资料", "上传资料[" + m.getTitle() + "(id=" + m.getId() + ")]", 1);
 
         Map<String, Object> data = new LinkedHashMap<>();
@@ -256,6 +266,9 @@ public class LearnMaterialService extends ServiceImpl<LearnMaterialMapper, Learn
         }
         m.setUpdateBy(SecurityUtils.getUserId());
         updateById(m);
+        if (m.getAuditStatus() != null && m.getAuditStatus() == 1) {
+            startAuditFlow(m);
+        }
         sysLogService.log(1, "LIB", "编辑资料", "编辑资料[" + m.getTitle() + "(id=" + m.getId() + ")]", 1);
     }
 
@@ -344,6 +357,7 @@ public class LearnMaterialService extends ServiceImpl<LearnMaterialMapper, Learn
     // ---------------------------------------------------------------- LIB-09 删除资料
     public void deleteMaterial(Long materialId) {
         LearnMaterial m = requireInScope(materialId);
+        flowInstanceService.cancelByBiz(FLOW_MATERIAL_AUDIT, materialId, "资料删除");
         removeById(materialId);
         sysLogService.log(1, "LIB", "删除资料", "删除资料[" + m.getTitle() + "(id=" + m.getId() + ")]", 1);
     }
@@ -369,16 +383,22 @@ public class LearnMaterialService extends ServiceImpl<LearnMaterialMapper, Learn
                 throw new BizException(ErrorCode.FORBIDDEN, "仅上传单位的上级管理员可审核该资料");
             }
         }
-        if ("APPROVE".equals(action)) {
-            m.setAuditStatus(2);
-        } else if ("REJECT".equals(action)) {
-            if (!StringUtils.hasText(comment)) {
-                throw new BizException(ErrorCode.PARAM_ERROR, "驳回时审核意见必填");
-            }
-            m.setAuditStatus(4);
-        } else {
+        if (!"APPROVE".equals(action) && !"REJECT".equals(action)) {
             throw new BizException(ErrorCode.PARAM_ERROR, "action 仅支持 APPROVE/REJECT");
         }
+        boolean approve = "APPROVE".equals(action);
+        if (!approve && !StringUtils.hasText(comment)) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "驳回时审核意见必填");
+        }
+        // 存在进行中的审批流程时交由工作流办理，状态由流程回调写回
+        if (flowInstanceService.hasRunning(FLOW_MATERIAL_AUDIT, materialId)) {
+            flowInstanceService.completeByBiz(FLOW_MATERIAL_AUDIT, materialId, approve, comment);
+            sysLogService.log(1, "LIB", approve ? "资料审核通过" : "资料审核驳回",
+                    "资料[" + m.getTitle() + "(id=" + m.getId() + ")]"
+                            + (StringUtils.hasText(comment) ? "，意见: " + comment : ""), 1);
+            return;
+        }
+        m.setAuditStatus(approve ? 2 : 4);
         m.setAuditBy(current.getUserId());
         m.setAuditTime(java.time.LocalDateTime.now());
         m.setUpdateBy(current.getUserId());
@@ -386,6 +406,16 @@ public class LearnMaterialService extends ServiceImpl<LearnMaterialMapper, Learn
         sysLogService.log(1, "LIB", "APPROVE".equals(action) ? "资料审核通过" : "资料审核驳回",
                 "资料[" + m.getTitle() + "(id=" + m.getId() + ")]"
                         + (StringUtils.hasText(comment) ? "，意见: " + comment : ""), 1);
+    }
+
+    /** 待审资料发起审核流程；流程未部署时降级为直接待审，不阻断上传/编辑 */
+    private void startAuditFlow(LearnMaterial m) {
+        try {
+            flowInstanceService.start(FLOW_MATERIAL_AUDIT, m.getId(), m.getTitle());
+        } catch (RuntimeException e) {
+            org.slf4j.LoggerFactory.getLogger(LearnMaterialService.class)
+                    .warn("资料审核流程发起失败，资料保持待审：materialId={}, err={}", m.getId(), e.getMessage());
+        }
     }
 
     // ---------------------------------------------------------------- LIB-11 发布/下架

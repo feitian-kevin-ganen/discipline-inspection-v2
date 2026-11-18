@@ -111,6 +111,14 @@ const MENU_CONFIG = [
     children: [{ title: '统计分析', path: '/stat' }]
   },
   {
+    title: '审批流程', icon: 'Stamp', roles: ADMIN,
+    children: [
+      { title: '待办审批', path: '/workflow/todo' },
+      { title: '我发起的流程', path: '/workflow/started' },
+      { title: '流程定义', path: '/workflow/definitions' }
+    ]
+  },
+  {
     title: '系统管理', icon: 'Setting', roles: ADMIN,
     children: [
       { title: '参数配置', path: '/sys/configs', roles: SYS },

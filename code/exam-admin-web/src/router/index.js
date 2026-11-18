@@ -40,6 +40,10 @@ const routes = [
       { path: 'mark/review', name: 'ReviewQueue', component: () => import('../views/mark/ReviewQueue.vue'), meta: { title: '复核队列', roles: MARK_ROLES } },
       // 测试统计
       { path: 'stat', name: 'ExamStat', component: () => import('../views/stat/ExamStat.vue'), meta: { title: '测试统计', roles: ADMIN_ROLES } },
+      // 审批流程
+      { path: 'workflow/todo', name: 'FlowTodo', component: () => import('../views/workflow/TodoList.vue'), meta: { title: '待办审批', roles: ADMIN_ROLES } },
+      { path: 'workflow/started', name: 'FlowStarted', component: () => import('../views/workflow/MyStarted.vue'), meta: { title: '我发起的流程', roles: ADMIN_ROLES } },
+      { path: 'workflow/definitions', name: 'FlowDefinitions', component: () => import('../views/workflow/Definitions.vue'), meta: { title: '流程定义', roles: ADMIN_ROLES } },
       // 系统管理
       { path: 'sys/configs', name: 'SysConfigs', component: () => import('../views/sys/ConfigList.vue'), meta: { title: '参数配置', roles: SYS_ROLES } },
       { path: 'sys/logs/login', name: 'LoginLogs', component: () => import('../views/sys/LoginLogs.vue'), meta: { title: '登录日志', roles: SYS_ROLES } },

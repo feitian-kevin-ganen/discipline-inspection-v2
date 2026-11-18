@@ -18,6 +18,7 @@
 
     <modules>
         <module>exam-common</module>
+        <module>exam-workflow</module>
         <module>exam-system</module>
         <module>exam-learn</module>
         <module>exam-question</module>
@@ -45,6 +46,11 @@
             <dependency>
                 <groupId>com.group.exam</groupId>
                 <artifactId>exam-common</artifactId>
+                <version>1.0.0</version>
+            </dependency>
+            <dependency>
+                <groupId>com.group.exam</groupId>
+                <artifactId>exam-workflow</artifactId>
                 <version>1.0.0</version>
             </dependency>
             <dependency>

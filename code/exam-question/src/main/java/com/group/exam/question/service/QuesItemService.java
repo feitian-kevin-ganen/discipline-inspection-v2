@@ -22,6 +22,7 @@ import com.group.exam.question.enums.QuesTypeEnum;
 import com.group.exam.question.mapper.QuesItemMapper;
 import com.group.exam.question.support.QuesItemAssembler;
 import com.group.exam.question.support.StemTextUtils;
+import com.group.exam.workflow.service.FlowInstanceService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -41,15 +42,21 @@ public class QuesItemService extends ServiceImpl<QuesItemMapper, QuesItem> {
     private final QuesBankService quesBankService;
     private final QuesDupCheckService quesDupCheckService;
     private final SysConfigService sysConfigService;
+    private final FlowInstanceService flowInstanceService;
     private final boolean mysql;
+
+    /** 题目审核流程定义 key（BPMN process id） */
+    private static final String FLOW_QUES_ITEM_AUDIT = "ques_item_audit";
 
     public QuesItemService(QuesBankService quesBankService,
                            QuesDupCheckService quesDupCheckService,
                            SysConfigService sysConfigService,
+                           FlowInstanceService flowInstanceService,
                            javax.sql.DataSource dataSource) {
         this.quesBankService = quesBankService;
         this.quesDupCheckService = quesDupCheckService;
         this.sysConfigService = sysConfigService;
+        this.flowInstanceService = flowInstanceService;
         this.mysql = DbDialect.isMysql(dataSource);
     }
 
@@ -132,6 +139,9 @@ public class QuesItemService extends ServiceImpl<QuesItemMapper, QuesItem> {
             throw new BizException(ErrorCode.QUESTION_DUPLICATED);
         }
         save(item);
+        if (item.getStatus() != null && item.getStatus() == ItemStatusEnum.PENDING_AUDIT.getCode()) {
+            startAuditFlow(item);
+        }
 
         ItemCreateResp resp = new ItemCreateResp();
         resp.setItemId(item.getId());
@@ -160,6 +170,9 @@ public class QuesItemService extends ServiceImpl<QuesItemMapper, QuesItem> {
         }
         item.setUpdateBy(currentUserIdOrNull());
         updateById(item);
+        if (item.getStatus() != null && item.getStatus() == ItemStatusEnum.PENDING_AUDIT.getCode()) {
+            startAuditFlow(item);
+        }
     }
 
     /**
@@ -172,6 +185,8 @@ public class QuesItemService extends ServiceImpl<QuesItemMapper, QuesItem> {
         if (item == null) {
             throw new BizException(ErrorCode.NOT_FOUND, "题目不存在: " + itemId);
         }
+        flowInstanceService.cancelByBiz(FLOW_QUES_ITEM_AUDIT, itemId,
+                hard ? "题目删除" : "题目停用");
         if (!hard) {
             item.setStatus(ItemStatusEnum.DISABLED.getCode());
             item.setUpdateBy(currentUserIdOrNull());
@@ -187,7 +202,9 @@ public class QuesItemService extends ServiceImpl<QuesItemMapper, QuesItem> {
     }
 
     /**
-     * 题目审核（QUES-13）：ENABLE→启用 / REJECT→驳回至草稿 / DISABLE→停用
+     * 题目审核（QUES-13）：ENABLE→启用 / REJECT→驳回至草稿 / DISABLE→停用。
+     * 待审题目存在进行中的审批流程时走工作流办理，状态由流程回调写回；
+     * 老数据（无流程实例）保持直接改状态的兼容路径。
      */
     @Transactional(rollbackFor = Exception.class)
     public void audit(Long itemId, String action, String comment) {
@@ -202,25 +219,53 @@ public class QuesItemService extends ServiceImpl<QuesItemMapper, QuesItem> {
                 if (current == ItemStatusEnum.ENABLED.getCode()) {
                     return;
                 }
-                item.setStatus(ItemStatusEnum.ENABLED.getCode());
             }
             case REJECT -> {
                 if (current != ItemStatusEnum.PENDING_AUDIT.getCode()) {
                     throw new BizException(ErrorCode.QUESTION_NOT_FOUND, "当前状态不允许驳回（仅待审核题目可驳回）");
                 }
-                item.setStatus(ItemStatusEnum.DRAFT.getCode());
             }
             case DISABLE -> {
                 if (current != ItemStatusEnum.ENABLED.getCode()) {
                     throw new BizException(ErrorCode.QUESTION_NOT_FOUND, "当前状态不允许停用（仅启用题目可停用）");
                 }
-                item.setStatus(ItemStatusEnum.DISABLED.getCode());
             }
+        }
+        if (act != AuditActionEnum.DISABLE
+                && flowInstanceService.hasRunning(FLOW_QUES_ITEM_AUDIT, itemId)) {
+            boolean approve = act == AuditActionEnum.ENABLE;
+            String opinion = (comment == null || comment.isBlank())
+                    ? (approve ? "同意" : "驳回") : comment.trim();
+            flowInstanceService.completeByBiz(FLOW_QUES_ITEM_AUDIT, itemId, approve, opinion);
+            return;
+        }
+        switch (act) {
+            case ENABLE -> item.setStatus(ItemStatusEnum.ENABLED.getCode());
+            case REJECT -> item.setStatus(ItemStatusEnum.DRAFT.getCode());
+            case DISABLE -> item.setStatus(ItemStatusEnum.DISABLED.getCode());
         }
         item.setAuditBy(currentUserIdOrNull());
         item.setAuditTime(LocalDateTime.now());
         item.setUpdateBy(currentUserIdOrNull());
         updateById(item);
+    }
+
+    /** 待审题目发起审核流程；流程定义未部署（如升级脚本未执行）时降级为直接待审，不阻断保存 */
+    private void startAuditFlow(QuesItem item) {
+        try {
+            flowInstanceService.start(FLOW_QUES_ITEM_AUDIT, item.getId(), auditTitle(item));
+        } catch (RuntimeException e) {
+            org.slf4j.LoggerFactory.getLogger(QuesItemService.class)
+                    .warn("题目审核流程发起失败，题目保持待审：itemId={}, err={}", item.getId(), e.getMessage());
+        }
+    }
+
+    private String auditTitle(QuesItem item) {
+        String text = StemTextUtils.plainText(item.getStem());
+        if (text.isEmpty()) {
+            return "题目 #" + item.getId();
+        }
+        return text.length() > 40 ? text.substring(0, 40) + "…" : text;
     }
 
     // ------------------------------------------------------------------
