@@ -31,12 +31,6 @@ guolian/deploy-history/full-deploy/deploy-files/middleware/
 guolian/deploy-history/full-deploy/deploy-files/run/
 guolian/deploy-history/full-deploy/deploy-files/web/
 
-# 本机发布包：二进制/运行目录不入库；config、scripts、docs、README 与 source-code 入库
-guolian/deploy-history/local-deploy/deploy-files/app/
-guolian/deploy-history/local-deploy/deploy-files/middleware/
-guolian/deploy-history/local-deploy/deploy-files/web/
-guolian/deploy-history/local-deploy/deploy-files/logs/
-guolian/deploy-history/local-deploy/deploy-files/run/
 **/__pycache__/
 
 # Large binaries (kept locally but not tracked)
