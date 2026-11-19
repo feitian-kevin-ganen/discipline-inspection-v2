@@ -468,9 +468,40 @@ public class FlowInstanceServiceImpl implements FlowInstanceService {
         if (def == null) {
             throw new BizException(ErrorCode.NOT_FOUND, "流程定义不存在: " + definitionId);
         }
+        return readDefinitionXml(def);
+    }
+
+    @Override
+    public String diagramXml(String definitionId) {
+        ProcessDefinition def = repositoryService.createProcessDefinitionQuery()
+                .processDefinitionId(definitionId)
+                .singleResult();
+        if (def == null) {
+            throw new BizException(ErrorCode.NOT_FOUND, "流程定义不存在: " + definitionId);
+        }
+        String xml = readDefinitionXml(def);
+        if (xml.contains("BPMNDiagram")) {
+            return xml;
+        }
+        List<ProcessDefinition> versions = repositoryService.createProcessDefinitionQuery()
+                .processDefinitionKey(def.getKey())
+                .orderByProcessDefinitionVersion().desc().list();
+        for (ProcessDefinition candidate : versions) {
+            if (candidate.getId().equals(def.getId())) {
+                continue;
+            }
+            String candidateXml = readDefinitionXml(candidate);
+            if (candidateXml.contains("BPMNDiagram")) {
+                return candidateXml;
+            }
+        }
+        return xml;
+    }
+
+    private String readDefinitionXml(ProcessDefinition def) {
         try (InputStream in = repositoryService.getResourceAsStream(def.getDeploymentId(), def.getResourceName())) {
             if (in == null) {
-                throw new BizException(ErrorCode.NOT_FOUND, "流程定义资源不存在: " + definitionId);
+                throw new BizException(ErrorCode.NOT_FOUND, "流程定义资源不存在: " + def.getId());
             }
             return new String(in.readAllBytes(), StandardCharsets.UTF_8);
         } catch (IOException e) {

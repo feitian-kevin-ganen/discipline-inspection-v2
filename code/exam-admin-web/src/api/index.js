@@ -160,6 +160,7 @@ export const fileApi = {
 export const workflowApi = {
   definitions: () => request.get('/workflow/definitions'),
   definitionXml: (definitionId) => request.get(`/workflow/definition/${definitionId}/xml`),
+  diagramXml: (definitionId) => request.get(`/workflow/definition/${definitionId}/diagram-xml`),
   changeDefinitionState: (definitionId, suspend) =>
     request.post(`/workflow/definition/${definitionId}/state`, { suspend }),
   todo: () => request.get('/workflow/task/todo'),

@@ -91,14 +91,15 @@ function resetQuery() {
   loadList()
 }
 
-async function loadXml(row) {
+async function loadXml(row, forDiagram = false) {
   current.value = row
   xml.value = ''
-  xml.value = (await workflowApi.definitionXml(row.id)) || ''
+  const api = forDiagram ? workflowApi.diagramXml : workflowApi.definitionXml
+  xml.value = (await api(row.id)) || ''
 }
 
 async function openDiagram(row) {
-  await loadXml(row)
+  await loadXml(row, true)
   diagramVisible.value = true
 }
 

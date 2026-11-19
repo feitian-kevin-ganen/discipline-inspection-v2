@@ -124,6 +124,13 @@ public class WorkflowController {
         return Result.ok(flowInstanceService.definitionXml(definitionId));
     }
 
+    /** 流程图渲染用 XML：旧版本无 BPMN DI 时回退到同 key 最新含图形的版本 */
+    @GetMapping("/definition/{definitionId}/diagram-xml")
+    public Result<String> diagramXml(@PathVariable String definitionId) {
+        requireAdmin();
+        return Result.ok(flowInstanceService.diagramXml(definitionId));
+    }
+
     @PostMapping("/definition/{definitionId}/state")
     public Result<Void> changeDefinitionState(@PathVariable String definitionId,
                                               @RequestBody FlowDefinitionStateReq req) {

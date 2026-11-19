@@ -75,7 +75,7 @@ async function load() {
     const definitionId = detail.value?.instance?.definitionId
     if (definitionId) {
       const [xmlText, diagram] = await Promise.all([
-        workflowApi.definitionXml(definitionId),
+        workflowApi.diagramXml(definitionId),
         workflowApi.diagramData(props.procInstId)
       ])
       xml.value = xmlText || ''

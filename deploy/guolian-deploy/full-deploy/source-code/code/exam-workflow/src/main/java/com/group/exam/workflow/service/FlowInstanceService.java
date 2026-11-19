@@ -60,6 +60,13 @@ public interface FlowInstanceService {
     /** 流程定义 BPMN XML（流程设计图 / 查看 XML） */
     String definitionXml(String definitionId);
 
+    /**
+     * 流程图渲染用 BPMN XML。
+     * 早期部署的版本只含语义节点、没有 BPMN DI 坐标，bpmn-js 会报 "no diagram to display"；
+     * 此时回退到同 key 最新一个含图形的版本（节点 id 一致，高亮数据仍可匹配）。
+     */
+    String diagramXml(String definitionId);
+
     /** 挂起/激活流程定义（级联到进行中实例） */
     void changeDefinitionState(String definitionId, boolean suspend);
 
