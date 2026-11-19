@@ -1,4 +1,4 @@
-# 发布说明 full-deploy-20261119-v1
+# 发布说明 full-deploy-20261119-v1.1
 
 **包类型**：测试机全量包（后端 + 三端前端 + 配置 + 中间件 + 数据副本 + 文档 + 脚本）
 **打包日期**：2026-11-19
@@ -6,7 +6,15 @@
 **包顶层**：`AIExamK3/`（解压到 `/root/fully-deploy` 得到 `/root/fully-deploy/AIExamK3`）
 **目标机**：10.64.16.29（国联测试环境）
 
-> 本包替代 `full-deploy-20261118-v1.tar.gz`。20261117 包的后端 jar 只打进了 `exam-common` 一个模块，启动即 `NoClassDefFoundError`，已改名为 `full-deploy-20261117-v1.broken-do-not-use.tar.gz`，**不要再用**。
+> 本包替代 `full-deploy-20261119-v1.tar.gz`（该包后端 `/api/v1/health/db` 被鉴权拦截，发布 verify 会报异常，已保留作回退备份）。
+> 20261117 包的后端 jar 只打进了 `exam-common` 一个模块，启动即 `NoClassDefFoundError`，已改名为 `full-deploy-20261117-v1.broken-do-not-use.tar.gz`，**不要再用**。
+
+## 本版变更（相对 20261119-v1）
+
+| 项 | 变更 |
+|----|------|
+| 后端鉴权 | `SecurityConfig` 白名单放行 `GET /api/v1/health/db`，与 `deploy_release.sh verify` 的健康检查口径一致；其余业务接口仍需 token（实测未授权访问仍返回 401） |
+| 回退 | 保留 `full-deploy-20261119-v1.tar.gz`；出问题可用旧包覆盖 staging 后重新 `all --yes` |
 
 ## 本版变更（相对 20261118-v1）
 
@@ -24,7 +32,7 @@
 
 | 项 | 值 / 校验方法 |
 |----|---------------|
-| 后端 | `app/exam-server.jar`，112,715,244 字节 |
+| 后端 | `app/exam-server.jar`，112,715,256 字节 |
 | jar 内模块 | 9 个：exam-common/exam/exam-integration/exam-learn/exam-practice/exam-question/exam-stat/exam-system/exam-workflow（`unzip -l app/exam-server.jar \| grep BOOT-INF/lib/exam-`） |
 | 工作流引擎 | Flowable（jar 内 `BOOT-INF/lib/flowable-*`），表结构 `flowable.database-schema-update=true` 自动建 |
 | 管理端 | `web/admin/`，构建 base `/mgmt/`，含 `审批流程`（待办 / 我发起的 / 流程定义）三个页面 |
@@ -68,7 +76,7 @@ ls -l docs/flow-config.docx web/sso/index.html
 
 ```bash
 cd /root
-tar -xzf full-deploy-20261119-v1.tar.gz -C /root/fully-deploy
+tar -xzf full-deploy-20261119-v1.1.tar.gz -C /root/fully-deploy
 # 若 /root/fully-deploy 不存在：mkdir -p /root/fully-deploy
 ls /root/fully-deploy/AIExamK3
 ```
