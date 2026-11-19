@@ -73,7 +73,7 @@
             <el-option
               v-for="u in userOptions"
               :key="u.userId"
-              :label="`${u.userName}（${u.jobNo || u.userId}）`"
+              :label="`${u.name || u.userName || u.phone || u.userId}（${u.jobNo || u.userId}）`"
               :value="u.userId"
             />
           </el-select>
