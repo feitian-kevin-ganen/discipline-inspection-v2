@@ -12,7 +12,13 @@
         <el-button v-if="detail.status === 'NOT_STARTED'" type="warning" @click="onStatusAction('CANCEL')">取消</el-button>
         <el-button v-if="detail.status === 'IN_PROGRESS'" type="primary" @click="onExtend">延长测试</el-button>
         <el-button v-if="detail.status === 'IN_PROGRESS'" type="danger" @click="openForceSubmit">强制收卷</el-button>
-        <el-button type="primary" plain @click="notifyDialog = true">推送通知</el-button>
+        <el-button
+          type="primary"
+          plain
+          :disabled="detail.status === 'CANCELED'"
+          :title="detail.status === 'CANCELED' ? '场次已取消，不可推送通知' : ''"
+          @click="notifyDialog = true"
+        >推送通知</el-button>
         <el-button v-if="detail.status === 'ENDED'" type="primary" plain @click="openRetake">补考设置</el-button>
         <el-button v-if="detail.status === 'ENDED'" type="success" @click="onPublish">发布成绩</el-button>
       </div>

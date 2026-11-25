@@ -302,6 +302,9 @@ public class CandidateService extends ServiceImpl<ExamCandidateMapper, ExamCandi
     @Transactional(rollbackFor = Exception.class)
     public Map<String, Object> notify(Long examId, String message, List<String> channels, List<Long> userIds) {
         ExamSession session = examSessionService.requireInScope(examId);
+        if (session.getSessionStatus() == SessionStatusEnum.CANCELED.getCode()) {
+            throw new BizException(ErrorCode.SESSION_STATUS_INVALID, "场次已取消，不可推送通知");
+        }
         List<ExamCandidate> candidates = list(new QueryWrapper<ExamCandidate>().eq("session_id", examId));
         if (candidates.isEmpty()) {
             throw new BizException(ErrorCode.SESSION_STATUS_INVALID,

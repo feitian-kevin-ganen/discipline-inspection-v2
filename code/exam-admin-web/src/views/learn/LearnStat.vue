@@ -15,7 +15,7 @@
           @change="onPeriodChange"
         />
         <div class="spacer"></div>
-        <el-dropdown @command="handleExport">
+        <el-dropdown trigger="click" @command="handleExport">
           <el-button type="primary">
             导出<el-icon style="margin-left: 4px"><ArrowDown /></el-icon>
           </el-button>

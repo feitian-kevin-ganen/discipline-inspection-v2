@@ -106,6 +106,11 @@ async function markOne(row) {
 }
 
 async function markAll() {
+  const unread = list.value.filter((r) => r.readFlag === '0').length
+  if (!unread) {
+    ElMessage.info('暂无待标记的抄送')
+    return
+  }
   const count = await workflowApi.markAllCopyRead()
   ElMessage.success(`已标记 ${count} 条为已读`)
   loadList()

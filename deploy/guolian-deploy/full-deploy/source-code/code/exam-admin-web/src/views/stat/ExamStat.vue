@@ -6,7 +6,7 @@
           <el-option v-for="e in examOptions" :key="e.examId" :label="e.examName" :value="e.examId" />
         </el-select>
         <div class="spacer"></div>
-        <el-dropdown :disabled="!examId" @command="handleExport">
+        <el-dropdown :disabled="!examId" trigger="click" @command="handleExport">
           <el-button type="primary" :disabled="!examId">
             导出<el-icon style="margin-left: 4px"><ArrowDown /></el-icon>
           </el-button>

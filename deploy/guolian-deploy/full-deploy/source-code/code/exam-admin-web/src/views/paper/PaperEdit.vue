@@ -22,8 +22,8 @@
           </el-col>
           <el-col :span="12">
             <el-form-item label="试卷类型" required>
-              <el-radio-group v-model="form.paperType">
-                <el-radio-button v-for="(v, k) in PAPER_TYPES" :key="k" :value="k">{{ v.label }}</el-radio-button>
+              <el-radio-group v-model="form.paperType" style="flex-wrap: wrap; gap: 2px; white-space: normal">
+                <el-radio-button v-for="(v, k) in PAPER_TYPES" :key="k" :value="k" style="margin-bottom: 4px">{{ v.label }}</el-radio-button>
               </el-radio-group>
             </el-form-item>
           </el-col>
