@@ -60,7 +60,7 @@
         <template v-if="docHtml">
           <div class="doc-toolbar">
             <span class="text-secondary">共 {{ pageCount }} 页 · 上下滚动阅读，进度自动记录 · 已读至第 {{ docPageNo }} 页</span>
-            <el-link v-if="fileUrl" :href="fileUrl" target="_blank" type="primary">新窗口打开</el-link>
+            <el-link v-if="fileUrl" :href="fileContentUrl" target="_blank" type="primary">新窗口打开</el-link>
           </div>
           <div ref="docScrollRef" class="docx-scroll" @scroll.passive="onDocScroll">
             <div class="docx-content" v-html="docHtml"></div>
@@ -77,7 +77,7 @@
           class="mb16"
         >
           <template v-if="fileUrl">
-            <el-link :href="fileUrl" target="_blank" type="primary">新窗口打开</el-link>
+            <el-link :href="fileContentUrl" target="_blank" type="primary">新窗口打开</el-link>
           </template>
         </el-alert>
 
@@ -96,7 +96,7 @@
               <el-button size="small" @click="zoom(10)">放大</el-button>
             </el-button-group>
             <span class="text-secondary">已读 {{ readCount }}/{{ pageCount }} 页</span>
-            <el-link v-if="fileUrl" :href="fileUrl" target="_blank" type="primary">新窗口打开</el-link>
+            <el-link v-if="fileUrl" :href="fileContentUrl" target="_blank" type="primary">新窗口打开</el-link>
           </div>
           <div class="canvas-wrap" v-loading="pageRendering">
             <img v-if="pageImageUrl" :src="pageImageUrl" class="doc-page-img" :style="{ width: zoomPct + '%' }" alt="资料页图" />
@@ -130,6 +130,9 @@ const videoSrcMp4 = computed(() =>
   `/api/v1/app/learn/materials/${materialId}/video?access_token=${userStore.accessToken}`)
 const videoSrcWebm = computed(() =>
   `/api/v1/app/learn/materials/${materialId}/video?fmt=webm&access_token=${userStore.accessToken}`)
+// 文档「新窗口打开」同源代理地址：预签名地址指向 OSS 内网端口，跨网段客户端不可达
+const fileContentUrl = computed(() =>
+  `/api/v1/app/learn/materials/${materialId}/file-content?access_token=${userStore.accessToken}`)
 const progressPct = ref(0)
 const effectiveSec = ref(0)
 const status = ref('NOT_STARTED')
